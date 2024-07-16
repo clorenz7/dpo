@@ -1,0 +1,18 @@
+[project]
+name = "cdpo"
+version = "0.0.1"
+authors = [
+    {name = "Cory Lorenz", email = "clorenz@gmail.com"},
+]
+
+dependencies = [
+    "datasets",
+    "transformers",
+    "torch"
+]
+
+[project.optional-dependencies]
+tests = [
+  "pytest",
+  "pytest-cov"
+]
