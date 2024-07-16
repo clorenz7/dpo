@@ -16,3 +16,7 @@ tests = [
   "pytest",
   "pytest-cov"
 ]
+dev = [
+  "matplotlib",
+  "numpy"
+]
