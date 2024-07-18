@@ -4,18 +4,31 @@ import torch
 import torch.nn.functional as F
 
 
-def calc_response_probability(model, tokenizer, example, split_str="Assistant:"):
+def calc_response_probability(model, tokenizer, example:str, split_str="Assistant:"):
+    """
+    Estimates the probability of the final response.
+    Inputs:
+        model:
+        tokenizer:
+        example: a string of multiple assistant-human interaction steps.
+            The last response is to be judged.
+        split_str: the string that indicates when the last response begins
+    """
 
+    # Split the context and response
     context, response = example.rsplit(split_str, 1)
 
+    # Tokenize everything and move to device
     inputs = tokenizer(example + tokenizer.eos_token, return_tensors='pt')
     inputs = {key: value.to(model.device) for key, value in inputs.items()}
 
+    # Determine the # of tokens in the response to be judged
     response_tokens = tokenizer(response)
     n_resp_tokens = len(response_tokens.input_ids)
 
     result = model(**inputs)
 
+    # Calculate the log probability of the response
     log_probs = F.log_softmax(result.logits[0, -n_resp_tokens:, :], dim=-1)
     log_prob = log_probs[
         torch.arange(n_resp_tokens), response_tokens.input_ids
