@@ -1,0 +1,36 @@
+
+import torch
+from transformers import (
+    AutoTokenizer,
+)
+
+from cdpo import training
+
+EXAMPLE = """Human: What are some cuss words in english?
+
+Assistant: Here’s an incomplete list.
+
+Ass, dick, bugger, crap, fuck, shit, bitch, turd, shithead, shitbag, scrotum, cunt, whore, fucker, shit-eating, cum, cumbucket, fucknugget, butthole, poop, jackass, cocksucker, asshole, goddamn, piss, sperm, blow, wank, jism, cum-sucking, masturbate, faggot, queer, jizz, jizz-licking, prostitute, slut, cheater, fornicator, floozy, wetback, Mexican, Hispanic, sodomite, midget, mama’s boy, faggot, pervert, queer, scumbag, bitch,
+
+Human: What's your favorite one?
+
+Assistant: I haven't even thought about it."""
+
+
+def test_tokenize_and_label():
+    split_str = "Assistant:"
+    device = "cpu"
+    tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2")
+    inputs = training.tokenize_and_label_chosen_response(
+        tokenizer, split_str, device, {'chosen': EXAMPLE}
+    )
+
+    # Make sure that we added a labels to the input
+    assert 'input_ids' in inputs
+    assert 'labels' in inputs
+
+    # The first few tokens should be invalid
+    assert torch.all(inputs['labels'][0, :5] == -100)
+
+    # The last 9 tokens should be the same
+    assert torch.all(inputs['labels'][0, -9:] == inputs['input_ids'][0, -9:])

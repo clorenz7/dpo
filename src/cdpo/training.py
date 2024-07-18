@@ -11,6 +11,24 @@ from transformers import (
 BASE_DIR = r"D:\training\cdpo"
 
 
+def tokenize_and_label_chosen_response(tokenizer, split_str, device, example):
+    # Split the context and response
+    context, response = example['chosen'].rsplit(split_str, 1)
+
+    # Tokenize everything and move to device
+    inputs = tokenizer(example['chosen'] + tokenizer.eos_token, return_tensors='pt')
+    inputs = {key: value.to(device) for key, value in inputs.items()}
+
+    # Determine the # of tokens in the response to be judged
+    response_tokens = tokenizer(response)
+    n_resp_tokens = len(response_tokens.input_ids)
+
+    inputs['labels'] = inputs['input_ids'].clone()
+    inputs['labels'][0, :-(n_resp_tokens+1)] = -100
+
+    return inputs
+
+
 def pretrain_on_chosen(model, tokenizer, ds, n_steps, split_str="Assistant:"):
 
     def tokenize_func(example):
