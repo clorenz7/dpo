@@ -4,7 +4,8 @@ import torch
 import torch.nn.functional as F
 
 
-def calc_response_probability(model, tokenizer, example:str, split_str="Assistant:"):
+def calc_response_probability(model, tokenizer, example: str,
+                              split_str="Assistant:"):
     """
     Estimates the probability of the final response.
     Inputs:
@@ -29,7 +30,8 @@ def calc_response_probability(model, tokenizer, example:str, split_str="Assistan
     result = model(**inputs)
 
     # Calculate the log probability of the response
-    log_probs = F.log_softmax(result.logits[0, -n_resp_tokens:, :], dim=-1)
+    # Include the previous token to account for the shift by 1.
+    log_probs = F.log_softmax(result.logits[0, -n_resp_tokens-1:, :], dim=-1)
     log_prob = log_probs[
         torch.arange(n_resp_tokens), response_tokens.input_ids
     ].sum()
@@ -55,8 +57,14 @@ def calculate_reference_probs(model, tokenizer, ds, split_str="Assistant:", inse
 
         if insert:
             example['ref_log_prob_delta'] = log_prob_W - log_prob_L
+            example['log_prob_W'] = log_prob_W
+            example['log_prob_L'] = log_prob_L
             return example
         else:
-            return {'ref_log_prob_delta': log_prob_W - log_prob_L}
+            return {
+                'ref_log_prob_delta': log_prob_W - log_prob_L,
+                'log_prob_W': log_prob_W,
+                'log_prob_L': log_prob_L,
+            }
 
     return ds.map(calc_ref_prob_delta, keep_in_memory=True, load_from_cache_file=False, num_proc=1)

@@ -6,6 +6,9 @@ def get_partially_trainable_model(model_name="microsoft/phi-1_5",
                                   n_layers_freeze=0, dropout=0.0):
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.truncation_side = 'left'
+
     model = AutoModelForCausalLM.from_pretrained(model_name)
 
     if model_name == "microsoft/phi-1_5":
