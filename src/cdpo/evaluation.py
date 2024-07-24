@@ -68,3 +68,4 @@ def calculate_reference_probs(model, tokenizer, ds, split_str="Assistant:", inse
             }
 
     return ds.map(calc_ref_prob_delta, keep_in_memory=True, load_from_cache_file=False, num_proc=1)
+

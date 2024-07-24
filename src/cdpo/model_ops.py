@@ -2,6 +2,14 @@ from torch.nn import Dropout
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 
+def get_tokenizer(model_name):
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.truncation_side = 'left'
+
+    return tokenizer
+
+
 def get_partially_trainable_model(model_name="microsoft/phi-1_5",
                                   n_layers_freeze=0, dropout=0.0):
 

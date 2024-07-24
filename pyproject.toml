@@ -6,9 +6,11 @@ authors = [
 ]
 
 dependencies = [
-    "datasets",
+    "datasets==2.19.1",
+    "openai",
+    "tenacity",
     "transformers",
-    "torch"
+    "torch",
 ]
 
 [project.optional-dependencies]
