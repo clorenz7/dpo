@@ -11,11 +11,10 @@ def get_tokenizer(model_name):
 
 
 def get_partially_trainable_model(model_name="microsoft/phi-1_5",
+                                  tokenizer_name=None,
                                   n_layers_freeze=0, dropout=0.0):
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.truncation_side = 'left'
+    tokenizer = get_tokenizer(tokenizer_name or model_name)
 
     model = AutoModelForCausalLM.from_pretrained(model_name)
 
@@ -37,7 +36,8 @@ def get_partially_trainable_model(model_name="microsoft/phi-1_5",
                 for param in model.transformer.h[layer_idx].parameters():
                     param.requires_grad = False
     else:
-        raise ValueError(f"model name {model_name} unknown!")
+        if n_layers_freeze > 0:
+            raise ValueError(f"model name {model_name} unknown!")
 
     # Set the dropout value
     for module in model.modules():

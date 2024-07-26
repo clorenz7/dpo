@@ -101,6 +101,7 @@ def pretrain_on_chosen_response(model, tokenizer, ds,
         return_tensors='pt'
     )
 
+    model.train()
     trainer = Trainer(
         model=model,
         args=training_args,
