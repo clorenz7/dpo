@@ -81,8 +81,18 @@ def preprocess_example_for_dpo(example: dict, model, tokenizer,
 
     new_example = {}
 
+    # There are some cases where the model generated extra "Assistant:"
+    # So we take the earliest last one over the two.
+    min_context_len = 1000000000
+
     for text_key in ('chosen', 'rejected'):
         context, response = example[text_key].rsplit(split_str, 1)
+        min_context_len = min(min_context_len, len(context))
+
+    context_idx = min_context_len + len(split_str)
+
+    for text_key in ('chosen', 'rejected'):
+        response = example[text_key][context_idx:]
 
         inputs = tokenizer(
             example[text_key] + tokenizer.eos_token,
