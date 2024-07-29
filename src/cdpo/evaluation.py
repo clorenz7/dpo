@@ -88,9 +88,11 @@ def preprocess_example_for_dpo(example: dict, model, tokenizer,
         min_context_len = min(min_context_len, len(context))
 
     response_start_idx = min_context_len + len(split_str)
-    new_example = {
-        'response_start_idx': response_start_idx
-    }
+    # new_example = {
+    #     'response_start_idx': response_start_idx
+    # }
+    new_example = {}
+    start_idxs = []
 
     for text_key in ('chosen', 'rejected'):
         response = example[text_key][response_start_idx:]
@@ -115,13 +117,22 @@ def preprocess_example_for_dpo(example: dict, model, tokenizer,
         ].sum()
 
         all_tokens = inputs['input_ids'].squeeze().tolist()
-
+        resp_start_idx = len(all_tokens) - n_resp_tokens - 1
+        start_idxs.append(resp_start_idx)
         new_example[text_key] = all_tokens
         new_example[text_key + '_log_prob'] = log_prob.item()
 
     # if new_example['chosen_start_idx'] != new_example['rejected_start_idx']:
     #     print("CHOSEN:", example['chosen'])
     #     print("REJECTED:", example['rejected'])
+
+    new_example['response_start_idx'] = start_idxs[0]
+
+    if start_idxs[0] != start_idxs[1]:
+        print("Token start:", start_idxs)
+        print("Char Start:", response_start_idx)
+        print("CHOSEN:", example['chosen'])
+        print("REJECTED:", example['rejected'])
 
     return new_example
 

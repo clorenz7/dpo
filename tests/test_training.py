@@ -74,7 +74,7 @@ class TestDpoTraining(TestCase):
     BASE_DIR = training.BASE_DIR
 
     def test_dpo_train(self):
-        save_dir = r'D:\training\cdpo\datasets\dpo_preproc_gpt2sm_jul26'
+        save_dir = r'D:\training\cdpo\datasets\dpo_preproc_gpt2sm_jul26_smoke'
         ds_train = Dataset.load_from_disk(save_dir)
 
         model_dir = r'D:\training\cdpo\results_jul20\checkpoint-45582'
@@ -100,11 +100,17 @@ class TestDpoTraining(TestCase):
         )
 
         model.train()
+
+        data_collator = training.DataCollatorDpo(
+            return_tensors='pt',
+            tokenizer=tokenizer,
+        )
+
         trainer = training.DpoTrainer(
             model=model,
             args=training_args,
             train_dataset=ds_train,
-            # data_collator=data_collator,
+            data_collator=data_collator,
         )
 
         trainer.train()
