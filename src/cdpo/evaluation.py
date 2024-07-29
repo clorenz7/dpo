@@ -79,8 +79,6 @@ def calculate_reference_probs(model, tokenizer, ds, split_str="Assistant:", inse
 def preprocess_example_for_dpo(example: dict, model, tokenizer,
                                split_str="Assistant:"):
 
-    new_example = {}
-
     # There are some cases where the model generated extra "Assistant:"
     # So we take the earliest last one over the two.
     min_context_len = 1000000000
@@ -89,10 +87,13 @@ def preprocess_example_for_dpo(example: dict, model, tokenizer,
         context, response = example[text_key].rsplit(split_str, 1)
         min_context_len = min(min_context_len, len(context))
 
-    context_idx = min_context_len + len(split_str)
+    response_start_idx = min_context_len + len(split_str)
+    new_example = {
+        'response_start_idx': response_start_idx
+    }
 
     for text_key in ('chosen', 'rejected'):
-        response = example[text_key][context_idx:]
+        response = example[text_key][response_start_idx:]
 
         inputs = tokenizer(
             example[text_key] + tokenizer.eos_token,
@@ -114,10 +115,8 @@ def preprocess_example_for_dpo(example: dict, model, tokenizer,
         ].sum()
 
         all_tokens = inputs['input_ids'].squeeze().tolist()
-        context_idx = len(all_tokens) - n_resp_tokens - 1
 
         new_example[text_key] = all_tokens
-        new_example[text_key + '_start_idx'] = context_idx
         new_example[text_key + '_log_prob'] = log_prob.item()
 
     # if new_example['chosen_start_idx'] != new_example['rejected_start_idx']:
