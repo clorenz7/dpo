@@ -185,20 +185,15 @@ class DpoTrainer(Trainer):
 
         log_probs = []
 
-        all_token_log_probs = F.log_softmax(
-            outputs.logits, dim=2
-        )
-
         for b_idx in range(start_idx.shape[0]):
             st_idx = start_idx[b_idx]
             e_idx = end_idx[b_idx]
-            # token_log_probs = F.log_softmax(
-            #     outputs.logits[b_idx, st_idx:e_idx-1, :],
-            #     dim=1
-            # )
+            token_log_probs = F.log_softmax(
+                outputs.logits[b_idx, st_idx:e_idx-1, :],
+                dim=1
+            )
             token_labels = inputs['input_ids'][b_idx, st_idx+1:e_idx]
-            # resp_log_prob = token_log_probs[torch.arange(token_labels.shape[0]), token_labels].sum()
-            resp_log_prob = all_token_log_probs[b_idx, torch.arange(st_idx, e_idx-1), token_labels].sum()
+            resp_log_prob = token_log_probs[torch.arange(token_labels.shape[0]), token_labels].sum()
             log_probs.append(resp_log_prob)
 
         ref_delta = ref_log_probs[::2] - ref_log_probs[1::2]
