@@ -120,6 +120,10 @@ def preprocess_example_for_dpo(example: dict, model, tokenizer,
         new_example[text_key + '_start_idx'] = context_idx
         new_example[text_key + '_log_prob'] = log_prob.item()
 
+    # if new_example['chosen_start_idx'] != new_example['rejected_start_idx']:
+    #     print("CHOSEN:", example['chosen'])
+    #     print("REJECTED:", example['rejected'])
+
     return new_example
 
 
@@ -154,8 +158,11 @@ def preprocess_dataset_for_dpo(ds: Dataset, model, tokenizer,
         num_proc=1
     )
 
-    if save_dir:
-        ds_new.save_to_disk(save_dir)
+    try:
+        if save_dir:
+            ds_new.save_to_disk(save_dir, )
+    except Exception as e:
+        print(e)
 
     return ds_new
 

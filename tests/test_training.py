@@ -1,4 +1,7 @@
 import os
+from unittest import TestCase
+
+from datasets import Dataset
 
 from transformers import (
     AutoTokenizer,
@@ -7,6 +10,7 @@ from transformers import (
 
 from base import TestModelBase
 from cdpo import training
+from cdpo import model_ops
 
 
 EXAMPLE = """Human: What are some cuss words in english?
@@ -44,7 +48,7 @@ def test_tokenize_and_label():
 
 class TestTraining(TestModelBase):
 
-    def test_smoke_train(self):
+    def test_pre_train(self):
 
         # Just run a short training to make sure it works
         training_args = TrainingArguments(
@@ -63,4 +67,48 @@ class TestTraining(TestModelBase):
         training.pretrain_on_chosen_response(
             self.model, self.tokenizer, self.ds['train'], training_args
         )
+
+
+class TestDpoTraining(TestCase):
+
+    BASE_DIR = training.BASE_DIR
+
+    def test_dpo_train(self):
+        save_dir = r'D:\training\cdpo\datasets\dpo_preproc_gpt2sm_jul26'
+        ds_train = Dataset.load_from_disk(save_dir)
+
+        model_dir = r'D:\training\cdpo\results_jul20\checkpoint-45582'
+
+        model, tokenizer = model_ops.get_partially_trainable_model(
+            model_dir, n_layers_freeze=0, dropout=0.1,
+            tokenizer_name="openai-community/gpt2",
+        )
+        model.to('cuda:0')
+
+        training_args = TrainingArguments(
+            output_dir=os.path.join(self.BASE_DIR, "results_dpo"),
+            overwrite_output_dir=True,
+            max_steps=16*10,
+            per_device_train_batch_size=1,
+            gradient_accumulation_steps=4,
+            save_steps=16*10,
+            save_total_limit=None,
+            logging_dir=os.path.join(self.BASE_DIR, "logs"),
+            learning_rate=5e-5,
+            lr_scheduler_type="linear",
+            remove_unused_columns=False
+        )
+
+        model.train()
+        trainer = training.DpoTrainer(
+            model=model,
+            args=training_args,
+            train_dataset=ds_train,
+            # data_collator=data_collator,
+        )
+
+        trainer.train()
+
+
+
 

@@ -1,5 +1,6 @@
 
 import torch
+import torch.nn.functional as F
 
 from transformers import (
     DataCollatorForLanguageModeling,
@@ -114,5 +115,74 @@ def pretrain_on_chosen_response(model, tokenizer, ds,
     return trainer, tokenized_dataset
 
 
-def train_with_dpo(model, ds, n_steps, split_str="Assistant:"):
-    pass
+class DpoTrainer(Trainer):
+
+    def compute_loss(self, model, inputs, return_outputs=False):
+
+        ref_delta = inputs['rejected_log_prob'] - inputs['chosen_log_prob']
+
+        # Run the model on the context
+        start_idx = inputs['chosen_start_idx'].item()
+        ctx_input = {'input_ids': inputs['chosen'][:, :start_idx]}
+        outputs_ctx = model(**ctx_input)
+
+        # Grab the transformer state
+        past_key_values = outputs_ctx['past_key_values']
+
+        # Run model on chosen response with state
+        # TODO: make this a for loop over the two values
+        labels_W = inputs['chosen'][:, start_idx:]
+        input_W = {
+            'input_ids': labels_W,
+            'past_key_values': past_key_values
+        }
+        outputs_W = model(**input_W)
+
+        # Run model on rejected response with state
+        labels_L = inputs['rejected'][:, start_idx:]
+        input_L = {
+            'input_ids': labels_L,
+            'past_key_values': past_key_values
+        }
+        outputs_L = model(**input_L)
+
+        # Estimate probability of chosen and rejected
+        # BE CAREFUL WITH OFF BY ONE!
+        logits_W = torch.cat(
+            (outputs_ctx.logits[:, -1:, :], outputs_W.logits[:, :-1, :]),
+            dim=1
+        )
+        n_W = labels_W.shape[1]
+        logprobs_W = F.log_softmax(logits_W, dim=2)
+        log_prob_W = logprobs_W[0, torch.arange(n_W), labels_W[0, :]].sum()
+
+        logits_L = torch.cat(
+            (outputs_ctx.logits[:, -1:, :], outputs_L.logits[:, :-1, :]),
+            dim=1
+        )
+        n_L = labels_L.shape[1]
+        logprobs_L = F.log_softmax(logits_L, dim=2)
+        log_prob_L = logprobs_L[0, torch.arange(n_L), labels_L[0, :]].sum()
+
+        # Calculate the loss with logsigmoid and the reference probs
+        beta = 0.1
+        loss = -F.logsigmoid(beta * (log_prob_W - log_prob_L + ref_delta)).mean()
+
+        if return_outputs:
+            return loss, (outputs_ctx, outputs_W, outputs_L)
+        else:
+            return loss
+
+
+
+def train_with_dpo(model, ds, training_args):
+
+    model.train()
+    trainer = DpoTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=ds,
+        # data_collator=data_collator,
+    )
+
+    trainer.train()
