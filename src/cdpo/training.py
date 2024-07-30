@@ -189,10 +189,10 @@ class DpoTrainer(Trainer):
             st_idx = start_idx[b_idx]
             e_idx = end_idx[b_idx]
             token_log_probs = F.log_softmax(
-                outputs.logits[b_idx, st_idx:e_idx-1, :],
+                outputs.logits[b_idx, st_idx-1:e_idx-1, :],
                 dim=1
             )
-            token_labels = inputs['input_ids'][b_idx, st_idx+1:e_idx]
+            token_labels = inputs['input_ids'][b_idx, st_idx:e_idx]
             resp_log_prob = token_log_probs[torch.arange(token_labels.shape[0]), token_labels].sum()
             log_probs.append(resp_log_prob)
 
