@@ -25,7 +25,7 @@ def calc_response_probability(model, tokenizer, example: str,
     inputs = {key: value.to(model.device) for key, value in inputs.items()}
 
     # Determine the # of tokens in the response to be judged
-    response_tokens = tokenizer(response)
+    response_tokens = tokenizer(response + tokenizer.eos_token)
     n_resp_tokens = len(response_tokens.input_ids)
 
     result = model(**inputs)
