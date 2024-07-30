@@ -203,6 +203,8 @@ class DpoTrainer(Trainer):
         loss = -F.logsigmoid(beta * (resp_delta - ref_delta)).mean()
 
         if return_outputs:
+            outputs.log_probs = log_probs_T
+            outputs.ref_log_probs = ref_log_probs
             return loss, outputs
         else:
             return loss

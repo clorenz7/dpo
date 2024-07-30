@@ -1,8 +1,11 @@
 import os
 from unittest import TestCase
 
-from datasets import Dataset
-
+from datasets import (
+    Dataset,
+    load_dataset
+)
+import torch
 from transformers import (
     AutoTokenizer,
     TrainingArguments
@@ -11,6 +14,7 @@ from transformers import (
 from base import TestModelBase
 from cdpo import training
 from cdpo import model_ops
+from cdpo import evaluation
 
 
 EXAMPLE = """Human: What are some cuss words in english?
@@ -74,8 +78,9 @@ class TestDpoTraining(TestCase):
     BASE_DIR = training.BASE_DIR
 
     def test_dpo_train(self):
-        save_dir = r'D:\training\cdpo\datasets\dpo_preproc_gpt2sm_jul26_smoke'
-        ds_train = Dataset.load_from_disk(save_dir)
+        # data_dir = r'D:\training\cdpo\datasets\dpo_preproc_gpt2sm_jul26_smoke'
+        data_dir = r'D:\training\cdpo\datasets\dpo_preproc_gpt2sm_jul29'
+        ds_train = Dataset.load_from_disk(data_dir)
 
         model_dir = r'D:\training\cdpo\results_jul20\checkpoint-45582'
 
@@ -116,5 +121,52 @@ class TestDpoTraining(TestCase):
         trainer.train()
 
 
+    def test_dpo_prob_calcs(self):
+        model_dir = r'D:\training\cdpo\results_jul20\checkpoint-45582'
+        model, tokenizer = model_ops.get_partially_trainable_model(
+            model_dir, n_layers_freeze=0, dropout=0.0,  # dropout=0.1,
+            tokenizer_name="openai-community/gpt2",
+        )
+        model.to('cuda:0')
 
+        # Load and preprocess the dataset but only one element
+        ds = load_dataset("Anthropic/hh-rlhf")
+        ds['train'] = ds['train'].select(range(1))
 
+        ds_train = evaluation.preprocess_dataset_for_dpo(
+            ds['train'], model, tokenizer
+        )
+
+        # Setup a Trainer
+        model.train()
+        training_args = TrainingArguments(
+            output_dir=os.path.join(self.BASE_DIR, "results_dpo"),
+            overwrite_output_dir=True,
+            max_steps=4 * 4,
+            per_device_train_batch_size=1,
+            gradient_accumulation_steps=4,
+            save_steps=16*10,
+            save_total_limit=None,
+            logging_dir=os.path.join(self.BASE_DIR, "logs"),
+            learning_rate=1e-9,
+            lr_scheduler_type="linear",
+            remove_unused_columns=False
+        )
+        data_collator = training.DataCollatorDpo(
+            return_tensors='pt',
+            tokenizer=tokenizer,
+        )
+        trainer = training.DpoTrainer(
+            model=model,
+            args=training_args,
+            train_dataset=ds_train,
+            data_collator=data_collator,
+        )
+
+        # Compute loss on first batch of data
+        first_batch = next(iter(trainer.get_train_dataloader()))
+        loss, outputs = trainer.compute_loss(model, first_batch, True)
+
+        # Ensure that the precalculated log_probs and the model log_probs
+        # are roughly the same
+        assert torch.allclose(outputs.ref_log_probs, outputs.log_probs)
