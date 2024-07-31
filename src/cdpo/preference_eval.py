@@ -67,7 +67,7 @@ def evaluate_completion(query, response_a, response_b, model="gpt-4o-mini"):
                 "text": prompt
             }]
         }],
-        temperature=0.5,
+        temperature=0.0,
         max_tokens=256,
         top_p=1,
         frequency_penalty=0,
@@ -111,19 +111,23 @@ def generate_responses(model, tokenizer, dataset: Dataset, device,
 
     def generate_response(example):
         context, rejected = example['rejected'].rsplit(split_str, 1)
-        context, chosen = example['chosen'].rsplit(split_str, 1)
+        context2, chosen = example['chosen'].rsplit(split_str, 1)
+        if len(context2) < len(context):
+            context = context2
+
         prompt = context + "Assistant:"
 
         generated_text = text_generator(
             prompt, max_new_tokens=max_new_tokens,
             num_return_sequences=1,
-            return_full_text=False
+            return_full_text=False,
+            temperature=0.7
         )
 
         example['new_response'] = generated_text[0]['generated_text'][1:]
         example['chosen_response'] = chosen[1:]
         example['context'] = context
-        example['rejected_response'] = rejected
+        example['rejected_response'] = rejected[1:]
 
         return example
 
@@ -131,7 +135,6 @@ def generate_responses(model, tokenizer, dataset: Dataset, device,
         generate_response, batched=False,
         remove_columns=['chosen', 'rejected']
     )
-
 
 def evaluate_win_rate(dataset: Dataset, key_1: str = 'new_response',
                       key_2: str = 'chosen_response'):
@@ -147,6 +150,8 @@ def evaluate_win_rate(dataset: Dataset, key_1: str = 'new_response',
 
     new_idx = []
     judgements = []
+
+    fail_idxs = []
 
     for example in tqdm(dataset):
         if random.random() <= 0.5:
@@ -166,9 +171,9 @@ def evaluate_win_rate(dataset: Dataset, key_1: str = 'new_response',
         except Exception as e:
             new_idx.pop()
             print(e)
+            fail_idxs.append(len(new_idx) + len(fail_idxs))
 
-    win_rate = (
-        torch.tensor(judgements) == torch.tensor(new_idx)
-    ).to(float).mean()
+    winners = torch.tensor(judgements) == torch.tensor(new_idx)
+    win_rate = (winners).to(float).mean()
 
-    return win_rate.item()
+    return win_rate.item(), fail_idxs, winners.tolist()
