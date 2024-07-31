@@ -1,8 +1,5 @@
 import argparse
 
-from datasets import (
-    load_dataset,
-)
 import torch
 from transformers import (
     AutoTokenizer,
@@ -10,13 +7,13 @@ from transformers import (
 )
 
 from cdpo import evaluation
-from cdpo import model_ops
+from cdpo import data_utils
 
 
 def main(args):
     device = "cuda:0"
 
-    ds = load_dataset("Anthropic/hh-rlhf")
+    ds = data_utils.get_rlhf_data(n_test=2000)
 
     tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2")
     model = AutoModelForCausalLM.from_pretrained(args.model)
@@ -26,14 +23,15 @@ def main(args):
     with torch.no_grad():
         ds2 = evaluation.calculate_reference_probs(
             model, tokenizer,
-            ds['test'].filter(lambda x: len(x['chosen']) <= 1280).select(range(2000)),
+            ds['test'],
             split_str="Assistant:", insert=True
         )
 
     try:
-        ds2.save_to_disk(args.output_dir, num_proc=3)
+        ds2.save_to_disk(args.output_dir)
     except:
         import ipdb; ipdb.set_trace()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -48,7 +46,6 @@ if __name__ == "__main__":
         '-o', '--output_dir', type=str, required=True,
         help='Path to the output directory to save dataset'
     )
-
     args = parser.parse_args()
 
     main(args)
