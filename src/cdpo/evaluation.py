@@ -91,6 +91,7 @@ def preprocess_example_for_dpo(example: dict, model, tokenizer,
     new_example = {}
     start_idxs = []
 
+    # TODO: Put these in a batch and run them through the model
     for text_key in ('chosen', 'rejected'):
         response = example[text_key][response_start_idx:]
 
@@ -126,6 +127,70 @@ def preprocess_example_for_dpo(example: dict, model, tokenizer,
         print("Char Start:", response_start_idx)
         print("CHOSEN:", example['chosen'])
         print("REJECTED:", example['rejected'])
+
+    return new_example
+
+
+@torch.no_grad()
+def preprocess_example_for_dpo2(example: dict, model, collator,
+                                split_str="Assistant:"):
+    """
+    Uses batch processing to put tokens through model.
+    This is slightly faster (approx 20%) on single examples
+    But this should open up batch processing
+    """
+    # There are some cases where the model generated extra "Assistant:"
+    # So we take the earliest last one over the two.
+    min_context_len = 1000000000
+    tokenizer = collator.tokenizer
+
+    text_keys = ('chosen', 'rejected')
+
+    for text_key in text_keys:
+        context, response = example[text_key].rsplit(split_str, 1)
+        min_context_len = min(min_context_len, len(context))
+
+    response_start_idx = min_context_len + len(split_str)
+    new_example = {}
+    start_idxs = []
+    end_idxs = []
+    all_inputs = []
+
+    for text_key in text_keys:
+        response = example[text_key][response_start_idx:]
+
+        inputs = tokenizer(
+            example[text_key] + tokenizer.eos_token,
+            truncation=True
+        )
+        all_inputs.append(inputs)
+        new_example[text_key] = inputs.input_ids
+
+        # Determine the # of tokens in the response to be judged
+        response_tokens = tokenizer(response + tokenizer.eos_token)
+        n_resp_tokens = len(response_tokens.input_ids)
+        resp_start_idx = len(inputs.input_ids) - n_resp_tokens
+        start_idxs.append(resp_start_idx)
+        end_idxs.append(resp_start_idx + n_resp_tokens)
+
+    inputs = collator(all_inputs).to(model.device)
+    outputs = model(**inputs)
+
+    # Calculate the log probability of the response
+    # Include the previous token to account for the shift by 1.
+    start_idx = start_idxs[0]
+    for b_idx, end_idx in enumerate(end_idxs):
+        token_log_probs = F.log_softmax(
+            outputs.logits[b_idx, start_idx-1:end_idx-1, :],
+            dim=1
+        )
+        token_labels = inputs['input_ids'][b_idx, start_idx:end_idx]
+        resp_log_prob = token_log_probs[
+            torch.arange(token_labels.shape[0]), token_labels
+        ].sum()
+        new_example[text_keys[b_idx] + '_log_prob'] = resp_log_prob.item()
+
+    new_example['response_start_idx'] = start_idx
 
     return new_example
 

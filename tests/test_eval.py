@@ -1,9 +1,12 @@
 
 import torch
+from transformers import DataCollatorWithPadding
 
 import cdpo.evaluation
 
 from base import TestModelBase
+
+import time
 
 
 class TestEval(TestModelBase):
@@ -18,7 +21,7 @@ class TestEval(TestModelBase):
         assert log_prob <= 0
 
     def test_preproc_dpo(self):
-
+        self.model.eval()
         # Test that we can process a single example
         split_str = "Assistant:"
         example = cdpo.evaluation.preprocess_example_for_dpo(
@@ -50,3 +53,21 @@ class TestEval(TestModelBase):
             self.ds['train'].select(range(8)), self.model, self.tokenizer
         )
         assert len(ds_train) == 8
+
+    def test_preproc2_dpo(self):
+        # This is a Work in Progress for batch processing
+        self.model.eval()
+        collator = DataCollatorWithPadding(
+            tokenizer=self.tokenizer, return_tensors='pt'
+        )
+
+        # Test that we can process a single example
+        split_str = "Assistant:"
+        example = cdpo.evaluation.preprocess_example_for_dpo2(
+            self.ds['train'][0], self.model, collator,
+            split_str=split_str
+        )
+        # ipdb> example['chosen_log_prob']
+        # -21.820114135742188
+        # ipdb> example['rejected_log_prob']
+        # -14.548070907592773
