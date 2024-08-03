@@ -2,8 +2,9 @@
 from datasets import load_dataset
 
 
-def get_rlhf_data(max_chars=1280, verbose=0, n_train=None, n_test=None,
-                  exclude_test_idxs=None, exclude_train_idxs=None):
+def get_rlhf_data(max_chars=1280,  n_train=None, n_valid=None, n_test=None,
+                  exclude_test_idxs=None, exclude_train_idxs=None,
+                  verbose=0,):
     ds = load_dataset("Anthropic/hh-rlhf")
 
     if max_chars is not None:
@@ -15,6 +16,11 @@ def get_rlhf_data(max_chars=1280, verbose=0, n_train=None, n_test=None,
 
         ds['train'] = ds['train'].filter(filter_func)
         ds['test'] = ds['test'].filter(filter_func)
+
+    if n_valid:
+        split_dataset = ds['train'].train_test_split(test_size=n_valid)
+        ds['train'] = split_dataset['train']
+        ds['valid'] = split_dataset['test']
 
     if n_train:
         ds['train'] = ds['train'].select(range(n_train))
@@ -35,6 +41,8 @@ def get_rlhf_data(max_chars=1280, verbose=0, n_train=None, n_test=None,
 
     if verbose:
         print(f"Training data has {len(ds['train'])} points")
+        if n_valid:
+            print(f"Validation data has {len(ds['valid'])} points")
         print(f"Test data has {len(ds['test'])} points")
 
     return ds
