@@ -3,8 +3,8 @@ import torch
 import torch.nn.functional as F
 
 from transformers import (
-    DataCollatorForLanguageModeling,
     DataCollatorWithPadding,
+    EvalPrediction,
     Trainer,
     TrainingArguments,
 )
@@ -173,7 +173,7 @@ class DpoTrainer(Trainer):
         else:
             return loss
 
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss_flattened(self, model, inputs, return_outputs=False):
 
         beta = 0.1
 
@@ -209,6 +209,95 @@ class DpoTrainer(Trainer):
         else:
             return loss
 
+    def compute_loss(self, model, inputs, return_outputs=False):
+
+        beta = 0.1
+
+        start_idx = inputs.pop('start_idx')
+        end_idx = inputs.pop('end_idx')
+        ref_log_probs = inputs.pop('log_probs')
+
+        outputs = model(**inputs)
+
+        log_probs = []
+
+        for b_idx in range(start_idx.shape[0]):
+            batch_probs = []
+            for ex_idx in range(2):  # Chosen, then rejected example
+                st_idx = start_idx[b_idx, ex_idx]
+                e_idx = end_idx[b_idx, ex_idx]
+                token_log_probs = F.log_softmax(
+                    outputs.logits[b_idx, ex_idx, st_idx-1:e_idx-1, :],
+                    dim=1
+                )
+                token_labels = inputs['input_ids'][b_idx, ex_idx, st_idx:e_idx]
+                resp_log_prob = token_log_probs[torch.arange(token_labels.shape[0]), token_labels].sum()
+                batch_probs.append(resp_log_prob)
+            log_probs.append(torch.stack(batch_probs))
+
+        ref_delta = ref_log_probs[:, 0] - ref_log_probs[:, 1]
+        log_probs_T = torch.stack(log_probs)
+        resp_delta = log_probs_T[:, 0] - log_probs_T[:, 1]
+
+        loss = -F.logsigmoid(beta * (resp_delta - ref_delta)).mean()
+
+        if return_outputs:
+            outputs['log_probs'] = log_probs_T
+            outputs['ref_log_probs'] = ref_log_probs
+            return loss, outputs
+        else:
+            return loss
+
+
+class EvalMetricsState:
+
+    def __init__(self):
+        self.clear()
+
+    def clear(self):
+        self.win_flags = []
+        self.log_prob_deltas = []
+        self.rewards_W = []
+        self.rewards_L = []
+
+    def compute_metrics(self, outputs: EvalPrediction, compute_result=False):
+
+        # Compute win flags and log_prob_deltas
+        log_probs = outputs.predictions[1]
+        ref_log_probs = outputs.predictions[2]
+        self.win_flags.extend(
+            (log_probs[:, 0] > log_probs[:, 1]).to(float).cpu().tolist()
+        )
+        self.log_prob_deltas.extend(
+            (log_probs[:, 0] - log_probs[:, 1]).cpu().tolist()
+        )
+        self.rewards_W.extend(
+            (log_probs[:, 0] - ref_log_probs[:, 0]).cpu().tolist()
+        )
+        self.rewards_L.extend(
+            (log_probs[:, 1] - ref_log_probs[:, 1]).cpu().tolist()
+        )
+
+        if compute_result:
+            n_batch = len(self.win_flags)
+            metrics = {
+                'win_rate': 100.0 * sum(self.win_flags) / n_batch,
+                'avg_log_prob_delta': sum(self.log_prob_deltas) / n_batch,
+                'avg_reward_W': sum(self.rewards_W) / n_batch,
+                'avg_reward_L':  sum(self.rewards_L) / n_batch,
+            }
+            self.clear()
+            return metrics
+
+        return {}
+
+
+_global_metrics_state = EvalMetricsState()
+
+
+def compute_eval_metrics(outputs: EvalPrediction, compute_result=False):
+    return _global_metrics_state.compute_metrics(outputs, compute_result)
+
 
 class DataCollatorDpo(DataCollatorWithPadding):
 
@@ -218,23 +307,25 @@ class DataCollatorDpo(DataCollatorWithPadding):
         start_idx, end_idx = [], []
         log_probs = []
         for example in features:
+            # We flatten input_ids so that the parent class padding works below
             input_ids.append(example['chosen'])
             input_ids.append(example['rejected'])
+            start_idx.append([example['response_start_idx']]*2)
 
-            start_idx.append(example['response_start_idx'])
-            start_idx.append(example['response_start_idx'])
-            # TODO: This is only for testing
-            # start_idx.append(example['chosen_start_idx'])
-            # start_idx.append(example['rejected_start_idx'])
+            end_idx.append(
+                [len(example['chosen']), len(example['rejected'])]
+            )
 
-            end_idx.append(len(example['chosen']))
-            end_idx.append(len(example['rejected']))
-
-            log_probs.append(example['chosen_log_prob'])
-            log_probs.append(example['rejected_log_prob'])
+            log_probs.append(
+                [example['chosen_log_prob'], example['rejected_log_prob']]
+            )
 
         # Pad the input_ids and attention_mask
         batch = super().__call__({'input_ids': input_ids})
+        # Reshape the flattened tensor to put chosen / rejected in its own dimension
+        new_shape = (len(end_idx), 2, batch['input_ids'].shape[-1])
+        batch['input_ids'] = batch['input_ids'].view(new_shape)
+        batch['attention_mask'] = batch['attention_mask'].view(new_shape)
 
         batch['start_idx'] = torch.tensor(start_idx)
         batch['end_idx'] = torch.tensor(end_idx)
