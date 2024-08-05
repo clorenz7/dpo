@@ -231,8 +231,10 @@ class DpoTrainer(Trainer):
                     dim=1
                 )
                 token_labels = inputs['input_ids'][b_idx, ex_idx, st_idx:e_idx]
-                resp_log_prob = token_log_probs[torch.arange(token_labels.shape[0]), token_labels].sum()
-                batch_probs.append(resp_log_prob)
+                response_log_prob = token_log_probs[
+                    torch.arange(token_labels.shape[0]), token_labels
+                ].sum()
+                batch_probs.append(response_log_prob)
             log_probs.append(torch.stack(batch_probs))
 
         ref_delta = ref_log_probs[:, 0] - ref_log_probs[:, 1]
@@ -242,6 +244,7 @@ class DpoTrainer(Trainer):
         loss = -F.logsigmoid(beta * (resp_delta - ref_delta)).mean()
 
         if return_outputs:
+            # Cache the computed log probabilities for metrics calculations
             outputs['log_probs'] = log_probs_T
             outputs['ref_log_probs'] = ref_log_probs
             return loss, outputs
@@ -250,6 +253,9 @@ class DpoTrainer(Trainer):
 
 
 class EvalMetricsState:
+    """
+    Stores batch results and computes final evaluation metrics for DPO
+    """
 
     def __init__(self):
         self.clear()
@@ -295,8 +301,12 @@ class EvalMetricsState:
 _global_metrics_state = EvalMetricsState()
 
 
-def compute_eval_metrics(outputs: EvalPrediction, compute_result=False):
+def compute_metrics(outputs: EvalPrediction, compute_result=False):
     return _global_metrics_state.compute_metrics(outputs, compute_result)
+
+
+def reset_metrics():
+    _global_metrics_state.clear()
 
 
 class DataCollatorDpo(DataCollatorWithPadding):
