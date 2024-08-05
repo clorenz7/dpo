@@ -1,0 +1,31 @@
+
+
+
+
+
+
+dpo:
+  model:
+    loc: 'D:\training\cdpo\results_jul20\checkpoint-45582'
+    n_layers_freeze: 0
+    dropout: 0.1
+    tokenizer_name: "openai-community/gpt2"
+
+  data:
+    n_valid: 1000
+    verbose: 1
+    save_dir: 'D:\training\cdpo\datasets\dpo_preproc_gpt2sm_aug05'
+
+  training_args:
+    output_dir: "D:\\training\\cdpo\\results_dpo_rmsprop_sm_aug05"
+    # overwrite_output_dir: True
+    max_steps: 2400
+    adam_beta1: 0.0  # Make it roughly RMSProp
+    adam_beta2: 0.9
+    per_device_train_batch_size: 2
+    per_device_eval_batch_size: 8
+    gradient_accumulation_steps: 32
+    learning_rate: 5.0e-6
+
+
+

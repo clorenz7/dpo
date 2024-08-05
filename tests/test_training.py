@@ -219,7 +219,7 @@ class TestDpoTraining(TestCase):
             tokenizer=tokenizer,
         )
 
-        metrics_state = cdpo.training.EvalMetricsState()
+        metrics_state = cdpo.training.EvalMetricsAggregator()
 
         def compute_metrics(outputs, compute_result):
             return metrics_state.compute_metrics(outputs, compute_result)

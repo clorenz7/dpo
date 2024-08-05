@@ -1,4 +1,7 @@
 
+import os
+import yaml
+
 import torch
 import torch.nn.functional as F
 
@@ -8,7 +11,6 @@ from transformers import (
     Trainer,
     TrainingArguments,
 )
-
 
 BASE_DIR = r"D:\training\cdpo"
 
@@ -116,102 +118,15 @@ def pretrain_on_chosen_response(model, tokenizer, ds,
 
 
 class DpoTrainer(Trainer):
+    """
+    Trainer subclass which handles DPO loss calculation
+    """
 
-    def compute_loss_split(self, model, inputs, return_outputs=False):
-
-        ref_delta = inputs['rejected_log_prob'] - inputs['chosen_log_prob']
-
-        # Run the model on the context
-        start_idx = inputs['chosen_start_idx'].item()
-        ctx_input = {'input_ids': inputs['chosen'][:, :start_idx]}
-        outputs_ctx = model(**ctx_input)
-
-        # Grab the transformer state
-        past_key_values = outputs_ctx['past_key_values']
-
-        # Run model on chosen response with state
-        # TODO: make this a for loop over the two values
-        labels_W = inputs['chosen'][:, start_idx:]
-        input_W = {
-            'input_ids': labels_W,
-            'past_key_values': past_key_values
-        }
-        outputs_W = model(**input_W)
-
-        # Run model on rejected response with state
-        labels_L = inputs['rejected'][:, start_idx:]
-        input_L = {
-            'input_ids': labels_L,
-            'past_key_values': past_key_values
-        }
-        outputs_L = model(**input_L)
-
-        # Estimate probability of chosen and rejected
-        # BE CAREFUL WITH OFF BY ONE!
-        logits_W = torch.cat(
-            (outputs_ctx.logits[:, -1:, :], outputs_W.logits[:, :-1, :]),
-            dim=1
-        )
-        n_W = labels_W.shape[1]
-        logprobs_W = F.log_softmax(logits_W, dim=2)
-        log_prob_W = logprobs_W[0, torch.arange(n_W), labels_W[0, :]].sum()
-
-        logits_L = torch.cat(
-            (outputs_ctx.logits[:, -1:, :], outputs_L.logits[:, :-1, :]),
-            dim=1
-        )
-        n_L = labels_L.shape[1]
-        logprobs_L = F.log_softmax(logits_L, dim=2)
-        log_prob_L = logprobs_L[0, torch.arange(n_L), labels_L[0, :]].sum()
-
-        # Calculate the loss with logsigmoid and the reference probs
-        beta = 0.1
-        loss = -F.logsigmoid(beta * (log_prob_W - log_prob_L + ref_delta)).mean()
-
-        if return_outputs:
-            return loss, (outputs_ctx, outputs_W, outputs_L)
-        else:
-            return loss
-
-    def compute_loss_flattened(self, model, inputs, return_outputs=False):
-
-        beta = 0.1
-
-        start_idx = inputs.pop('start_idx')
-        end_idx = inputs.pop('end_idx')
-        ref_log_probs = inputs.pop('log_probs')
-
-        outputs = model(**inputs)
-
-        log_probs = []
-
-        for b_idx in range(start_idx.shape[0]):
-            st_idx = start_idx[b_idx]
-            e_idx = end_idx[b_idx]
-            token_log_probs = F.log_softmax(
-                outputs.logits[b_idx, st_idx-1:e_idx-1, :],
-                dim=1
-            )
-            token_labels = inputs['input_ids'][b_idx, st_idx:e_idx]
-            resp_log_prob = token_log_probs[torch.arange(token_labels.shape[0]), token_labels].sum()
-            log_probs.append(resp_log_prob)
-
-        ref_delta = ref_log_probs[::2] - ref_log_probs[1::2]
-        log_probs_T = torch.stack(log_probs)
-        resp_delta = log_probs_T[::2] - log_probs_T[1::2]
-
-        loss = -F.logsigmoid(beta * (resp_delta - ref_delta)).mean()
-
-        if return_outputs:
-            outputs.log_probs = log_probs_T
-            outputs.ref_log_probs = ref_log_probs
-            return loss, outputs
-        else:
-            return loss
+    def __init__(self, *args, beta=0.1, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.beta = beta
 
     def compute_loss(self, model, inputs, return_outputs=False):
-
-        beta = 0.1
 
         start_idx = inputs.pop('start_idx')
         end_idx = inputs.pop('end_idx')
@@ -241,7 +156,7 @@ class DpoTrainer(Trainer):
         log_probs_T = torch.stack(log_probs)
         resp_delta = log_probs_T[:, 0] - log_probs_T[:, 1]
 
-        loss = -F.logsigmoid(beta * (resp_delta - ref_delta)).mean()
+        loss = -F.logsigmoid(self.beta * (resp_delta - ref_delta)).mean()
 
         if return_outputs:
             # Cache the computed log probabilities for metrics calculations
@@ -252,7 +167,7 @@ class DpoTrainer(Trainer):
             return loss
 
 
-class EvalMetricsState:
+class EvalMetricsAggregator:
     """
     Stores batch results and computes final evaluation metrics for DPO
     """
@@ -289,8 +204,7 @@ class EvalMetricsState:
             metrics = {
                 'win_rate': 100.0 * sum(self.win_flags) / n_batch,
                 'avg_log_prob_delta': sum(self.log_prob_deltas) / n_batch,
-                'avg_reward_W': sum(self.rewards_W) / n_batch,
-                'avg_reward_L':  sum(self.rewards_L) / n_batch,
+                'avg_reward_delta': (sum(self.rewards_W) - sum(self.rewards_L)) / n_batch,
             }
             self.clear()
             return metrics
@@ -298,7 +212,7 @@ class EvalMetricsState:
         return {}
 
 
-_global_metrics_state = EvalMetricsState()
+_global_metrics_state = EvalMetricsAggregator()
 
 
 def compute_metrics(outputs: EvalPrediction, compute_result=False):
@@ -344,18 +258,60 @@ class DataCollatorDpo(DataCollatorWithPadding):
         return batch
 
 
-def train_with_dpo(model, ds, training_args):
+def get_dpo_training_args(yaml_file=None, **kwargs):
 
-    data_collator = DataCollatorDpo(
-        return_tensors='pt'
+    train_kwargs = dict(
+        label_names=['start_idx', 'end_idx', 'log_probs'],
+        eval_on_start=True,
+        eval_steps=100,
+        logging_steps=100,
+        save_steps=100,
+        save_total_limit=None,
+        eval_strategy='steps',
+        batch_eval_metrics=True,
+        remove_unused_columns=False,
+        eval_do_concat_batches=False,
+        lr_scheduler_type="constant_with_warmup",
+        warmup_steps=125,
+        logging_dir=os.path.join(BASE_DIR, "logs"),
+        per_device_train_batch_size=1,
     )
 
-    model.train()
+    if yaml_file:
+        with open(yaml_file, 'r') as fp:
+            yaml_params = yaml.load(fp)
+        train_kwargs.update(yaml_params)
+        if not kwargs.keys().isdisjoint(yaml_params.keys()):
+            print(f"Warning! Keyword args {[k for k in kwargs.keys()]} overwrite yaml values!")
+
+    train_kwargs.update(**kwargs)
+
+    training_args = TrainingArguments(**train_kwargs)
+
+    return training_args
+
+
+def train_with_dpo(model, tokenizer, ds_preproc, training_args):
+
+    data_collator = DataCollatorDpo(
+        return_tensors='pt',
+        tokenizer=tokenizer,
+    )
+
+    # Setup the aggregator of metrics across all batches in the eval set
+    agg = EvalMetricsAggregator()
+    def compute_metrics_local(outputs: EvalPrediction, compute_result=False):
+        return agg.compute_metrics(outputs, compute_result)
+
+    # TODO: Add a callback to store metrics at end of each evaluation
     trainer = DpoTrainer(
         model=model,
         args=training_args,
-        train_dataset=ds,
         data_collator=data_collator,
+        train_dataset=ds_preproc['train'],
+        eval_dataset=ds_preproc['valid'],
+        compute_metrics=compute_metrics_local,
     )
-
     trainer.train()
+
+    return trainer
