@@ -16,6 +16,15 @@ from transformers import (
 BASE_DIR = r"D:\training\cdpo"
 
 
+class MetricsCallback(TrainerCallback):
+    def __init__(self):
+        self.metrics = []
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        self.metrics.append(logs.copy())
+        torch.cuda.empty_cache()
+
+
 class DataCollatorWithPaddingLabels(DataCollatorWithPadding):
     def __call__(self, features):
 
@@ -34,6 +43,41 @@ class DataCollatorWithPaddingLabels(DataCollatorWithPadding):
             )
 
         return batch
+
+
+def get_fine_tuning_args(yaml_file=None, **kwargs):
+
+    train_kwargs = dict(
+        num_train_epochs=4,
+        per_device_train_batch_size=2,
+        gradient_accumulation_steps=4,
+        learning_rate=5e-5,
+        eval_on_start=True,
+        eval_steps=1000,
+        logging_steps=1000,
+        save_steps=1000,
+        save_total_limit=None,
+        eval_strategy='steps',
+        batch_eval_metrics=True,
+        remove_unused_columns=False,
+        eval_do_concat_batches=False,
+        lr_scheduler_type="linear",
+        warmup_ratio=0.002,
+        logging_dir=os.path.join(BASE_DIR, "logs"),
+    )
+
+    if yaml_file:
+        with open(yaml_file, 'r') as fp:
+            yaml_params = yaml.safe_load(fp)
+        train_kwargs.update(yaml_params)
+        if not kwargs.keys().isdisjoint(yaml_params.keys()):
+            print(f"Warning! Keyword args {[k for k in kwargs.keys()]} overwrite yaml values!")
+
+    train_kwargs.update(**kwargs)
+
+    training_args = TrainingArguments(**train_kwargs)
+
+    return training_args
 
 
 def tokenize_and_label_chosen_response(tokenizer, split_str: str, device: str,
@@ -105,17 +149,21 @@ def pretrain_on_chosen_response(model, tokenizer, ds,
         return_tensors='pt'
     )
 
+    metrics_callback = MetricsCallback()
+
     model.train()
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=tokenized_dataset,
+        train_dataset=tokenized_dataset['train'],
+        eval_dataset=tokenized_dataset['valid'],
         data_collator=data_collator,
+        callbacks=[metrics_callback],
     )
 
     trainer.train()
 
-    return trainer, tokenized_dataset
+    return metrics_callback.metrics
 
 
 class DpoTrainer(Trainer):
@@ -280,7 +328,7 @@ def get_dpo_training_args(yaml_file=None, **kwargs):
 
     if yaml_file:
         with open(yaml_file, 'r') as fp:
-            yaml_params = yaml.load(fp)
+            yaml_params = yaml.safe_load(fp)
         train_kwargs.update(yaml_params)
         if not kwargs.keys().isdisjoint(yaml_params.keys()):
             print(f"Warning! Keyword args {[k for k in kwargs.keys()]} overwrite yaml values!")
@@ -291,13 +339,6 @@ def get_dpo_training_args(yaml_file=None, **kwargs):
 
     return training_args
 
-
-class MetricsCallback(TrainerCallback):
-    def __init__(self):
-        self.metrics = []
-
-    def on_log(self, args, state, control, logs=None, **kwargs):
-        self.metrics.append(logs.copy())
 
 
 def train_with_dpo(model, tokenizer, ds_preproc, training_args):
