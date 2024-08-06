@@ -10,6 +10,7 @@ from transformers import (
     EvalPrediction,
     Trainer,
     TrainingArguments,
+    TrainerCallback
 )
 
 BASE_DIR = r"D:\training\cdpo"
@@ -291,6 +292,14 @@ def get_dpo_training_args(yaml_file=None, **kwargs):
     return training_args
 
 
+class MetricsCallback(TrainerCallback):
+    def __init__(self):
+        self.metrics = []
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        self.metrics.append(logs.copy())
+
+
 def train_with_dpo(model, tokenizer, ds_preproc, training_args):
 
     data_collator = DataCollatorDpo(
@@ -300,18 +309,18 @@ def train_with_dpo(model, tokenizer, ds_preproc, training_args):
 
     # Setup the aggregator of metrics across all batches in the eval set
     agg = EvalMetricsAggregator()
-    def compute_metrics_local(outputs: EvalPrediction, compute_result=False):
-        return agg.compute_metrics(outputs, compute_result)
+    # Instantiate the callback to record progress
+    metrics_callback = MetricsCallback()
 
-    # TODO: Add a callback to store metrics at end of each evaluation
     trainer = DpoTrainer(
         model=model,
         args=training_args,
         data_collator=data_collator,
         train_dataset=ds_preproc['train'],
         eval_dataset=ds_preproc['valid'],
-        compute_metrics=compute_metrics_local,
+        compute_metrics=agg.compute_metrics,
+        callbacks=[metrics_callback]
     )
     trainer.train()
 
-    return trainer
+    return metrics_callback.metrics

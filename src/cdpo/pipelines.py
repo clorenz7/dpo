@@ -4,6 +4,7 @@ import os
 from datasets import (
     DatasetDict,
 )
+import joblib
 
 from cdpo import model_ops
 from cdpo import data_utils
@@ -38,8 +39,12 @@ def dpo_training_pipeline(training_kwargs, model=None, tokenizer=None, device="c
     training_args = training.get_dpo_training_args(
         **training_kwargs.get('training_args', {})
     )
-    trainer = training.train_with_dpo(
+    metrics = training.train_with_dpo(
         model, tokenizer, ds_preproc, training_args
     )
 
-    return trainer
+    metrics_file = training_kwargs.get('metrics_file')
+    if metrics_file:
+        joblib.dump(metrics, metrics_file)
+
+    return metrics
