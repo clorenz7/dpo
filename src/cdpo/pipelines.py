@@ -17,6 +17,7 @@ def dpo_training_pipeline(training_kwargs, model=None, tokenizer=None, device="c
 
     # Get the model and tokenizer
     if model is None:
+        print("Loading Model for DPO...")
         model_kwargs = dict(training_kwargs['model'])
         model_dir = model_kwargs.pop('loc')
 
@@ -31,6 +32,7 @@ def dpo_training_pipeline(training_kwargs, model=None, tokenizer=None, device="c
     if os.path.exists(save_dir):
         ds_preproc = DatasetDict.load_from_disk(save_dir)
     else:
+        print("Pre-processing data for DPO...")
         ds = data_utils.get_rlhf_data(**data_args)
         ds_preproc = evaluation.preprocess_dataset_for_dpo(
             ds, model, tokenizer, save_dir=save_dir
@@ -40,6 +42,7 @@ def dpo_training_pipeline(training_kwargs, model=None, tokenizer=None, device="c
     training_args = training.get_dpo_training_args(
         **training_kwargs.get('training_args', {})
     )
+    print("Training with DPO...")
     results = training.train_with_dpo(
         model, tokenizer, ds_preproc, training_args
     )
@@ -60,6 +63,7 @@ def dpo_training_pipeline(training_kwargs, model=None, tokenizer=None, device="c
 def fine_tuning(training_kwargs, device="cuda:0"):
 
     # Get the model and tokenizer
+    print("Loading Model...")
     model_kwargs = dict(training_kwargs['model'])
     model_loc = model_kwargs.pop('loc')
 
@@ -69,13 +73,15 @@ def fine_tuning(training_kwargs, device="cuda:0"):
     model.to(device)
 
     # Get the pre-processed training data
+    print("Loading Finetuning Data...")
     data_args = dict(training_kwargs['data'])
     ds = data_utils.get_rlhf_data(**data_args)
 
-    # Get trianing args and train
+    # Get training args and train
     training_args = training.get_fine_tuning_args(
         **training_kwargs.get('training_args', {})
     )
+    print("Finetuning...")
     results = training.pretrain_on_chosen_response(
         model, tokenizer, ds, training_args
     )
