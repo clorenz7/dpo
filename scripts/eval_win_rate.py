@@ -4,9 +4,7 @@ from datasets import (
     load_dataset,
     Dataset
 )
-import torch
 from transformers import (
-    AutoTokenizer,
     AutoModelForCausalLM
 )
 
@@ -29,12 +27,21 @@ def main(args):
 
         # Load the dataset
         print("Loading the dataset...")
-        n_samples = 100
+        n_samples = args.n_test
+        if args.exclude:
+            exclude_idxs = set(int(x) for x in args.exclude.split(","))
+            keep_idxs = set(range(n_samples + len(exclude_idxs)))
+            keep_idxs = list(keep_idxs.difference(exclude_idxs))
+            if len(keep_idxs) > n_samples:
+                keep_idxs = sorted(keep_idxs)[:n_samples]
+        else:
+            keep_idxs = range(n_samples)
+
         max_chars = 1280
         ds = load_dataset("Anthropic/hh-rlhf")
-        ds['train'] = ds['train'].filter(lambda x: len(x['chosen']) <= max_chars)
+        # ds['train'] = ds['train'].filter(lambda x: len(x['chosen']) <= max_chars)
         ds['test'] = ds['test'].filter(lambda x: len(x['chosen']) <= max_chars)
-        ds['test'] = ds['test'].select(range(n_samples))
+        ds['test'] = ds['test'].select(keep_idxs)
 
         print("Generating responses...")
         ds2 = preference_eval.generate_responses(
@@ -50,10 +57,7 @@ def main(args):
     print(f"Win Rate: {win_rate*100:0.1f}%")
     print(f"Fail indexes: {fail_idxs}")
 
-
     import ipdb; ipdb.set_trace()
-
-
 
 
 if __name__ == "__main__":
@@ -71,6 +75,14 @@ if __name__ == "__main__":
     parser.add_argument(
         '-g', '--gen_dir', type=str,
         help='Path to the generated dataset directory'
+    )
+    parser.add_argument(
+        '-n', '--n_test', type=int, default=100,
+        help='Number of test samples to generate and evaluate'
+    )
+    parser.add_argument(
+        '-x', '--exclude', type=str, default='',
+        help='comma separated list of test indexes to exclude e.g. 54,88888'
     )
 
     args = parser.parse_args()
