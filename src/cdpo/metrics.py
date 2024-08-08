@@ -42,7 +42,7 @@ def plot_validation_curves(metrics, step_size=100, show_plot=False, save_plot=''
         p_idx += 1
         plt.subplot(n_plots, 1, p_idx)
         plt.plot(steps, prob_deltas)
-        plt.ylabel('Log Prob Chosen - Reject')
+        plt.ylabel(r'$\log \pi_W / \pi_L$')
     plt.xlabel('Step')
 
     if save_plot:
