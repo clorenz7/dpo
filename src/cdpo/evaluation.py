@@ -5,8 +5,11 @@ import torch
 import torch.nn.functional as F
 
 
+from cdpo.data_utils import get_response_start_idx
+
+
 def calc_response_probability(model, tokenizer, example: str,
-                              split_str="Assistant:"):
+                              start_idx=None, split_str="Assistant:"):
     """
     Estimates the probability of the final response.
     Inputs:
@@ -14,11 +17,16 @@ def calc_response_probability(model, tokenizer, example: str,
         tokenizer:
         example: a string of multiple assistant-human interaction steps.
             The last response is to be judged.
-        split_str: the string that indicates when the last response begins
+        start_idx: The string index where the response starts
+        split_str: The string that indicates when the last response begins.
+            Only used if start_idx is None
     """
 
     # Split the context and response
-    context, response = example.rsplit(split_str, 1)
+    if start_idx is None:
+        context, response = example.rsplit(split_str, 1)
+    else:
+        response = example[start_idx:]
 
     # Tokenize everything and move to device
     inputs = tokenizer(example + tokenizer.eos_token, return_tensors='pt')
@@ -37,7 +45,7 @@ def calc_response_probability(model, tokenizer, example: str,
         torch.arange(n_resp_tokens), response_tokens.input_ids
     ].sum()
 
-    return log_prob
+    return log_prob, inputs, n_resp_tokens
 
 
 def calculate_reference_probs(model, tokenizer, ds, split_str="Assistant:", insert=True):
@@ -49,11 +57,16 @@ def calculate_reference_probs(model, tokenizer, ds, split_str="Assistant:", inse
     # So that it can be subtracted in the \log\sigma() term
 
     def calc_ref_prob_delta(example):
-        log_prob_W = calc_response_probability(
-            model, tokenizer, example['chosen'], split_str=split_str
+
+        response_start_idx = get_response_start_idx(example, split_str)
+
+        log_prob_W, _, _ = calc_response_probability(
+            model, tokenizer, example['chosen'],
+            start_idx=response_start_idx
         )
-        log_prob_L = calc_response_probability(
-            model, tokenizer, example['rejected'], split_str=split_str
+        log_prob_L, _, _ = calc_response_probability(
+            model, tokenizer, example['rejected'],
+            start_idx=response_start_idx
         )
 
         if insert:
@@ -75,21 +88,14 @@ def calculate_reference_probs(model, tokenizer, ds, split_str="Assistant:", inse
     )
 
 
+
 @torch.no_grad()
 def preprocess_example_for_dpo(example: dict, model, tokenizer,
                                split_str="Assistant:"):
 
-    # There are some cases where the model generated extra "Assistant:"
-    # So we take the earliest last one over the two.
-    min_context_len = 1000000000
-
-    for text_key in ('chosen', 'rejected'):
-        context, response = example[text_key].rsplit(split_str, 1)
-        min_context_len = min(min_context_len, len(context))
-
-    response_start_idx = min_context_len + len(split_str)
     new_example = {}
     start_idxs = []
+    response_start_idx = get_response_start_idx(example, split_str)
 
     # TODO: Put these in a batch and run them through the model
     for text_key in ('chosen', 'rejected'):
@@ -141,22 +147,15 @@ def preprocess_example_for_dpo2(example: dict, model, collator,
     """
     # There are some cases where the model generated extra "Assistant:"
     # So we take the earliest last one over the two.
-    min_context_len = 1000000000
     tokenizer = collator.tokenizer
+    response_start_idx = get_response_start_idx(example, split_str)
 
-    text_keys = ('chosen', 'rejected')
-
-    for text_key in text_keys:
-        context, response = example[text_key].rsplit(split_str, 1)
-        min_context_len = min(min_context_len, len(context))
-
-    response_start_idx = min_context_len + len(split_str)
     new_example = {}
     start_idxs = []
     end_idxs = []
     all_inputs = []
 
-    for text_key in text_keys:
+    for text_key in ('chosen', 'rejected'):
         response = example[text_key][response_start_idx:]
 
         inputs = tokenizer(

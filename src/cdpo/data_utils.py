@@ -2,9 +2,32 @@
 from datasets import load_dataset
 
 
+def get_response_start_idx(example, split_str):
+
+    # There are some cases where the model generated extra "Assistant:"
+    # So we take the earliest last one over the two.
+    min_context_len = 1000000000
+
+    for text_key in ('chosen', 'rejected'):
+        context, response = example[text_key].rsplit(split_str, 1)
+        min_context_len = min(min_context_len, len(context))
+
+    response_start_idx = min_context_len + len(split_str)
+
+    return response_start_idx
+
+
 def get_rlhf_data(max_chars=1280,  n_train=None, n_valid=None, n_test=None,
                   exclude_test_idxs=None, exclude_train_idxs=None,
-                  verbose=0, seed=None):
+                  verbose=0, seed=None, validate_on_test=False):
+    """
+    Inputs:
+        validate_on_test: Pull the validation data from the test set.
+            This is useful when finetuning before training DPO so that
+            you can split the validation set from the training set when
+            doing DPO. Otherwise, there is a distribution shift which
+            throws off the validation metrics.
+    """
     ds = load_dataset("Anthropic/hh-rlhf")
 
     if max_chars is not None:
@@ -18,9 +41,12 @@ def get_rlhf_data(max_chars=1280,  n_train=None, n_valid=None, n_test=None,
         ds['test'] = ds['test'].filter(filter_func)
 
     if n_valid:
-        split_dataset = ds['train'].train_test_split(test_size=n_valid, seed=seed)
-        ds['train'] = split_dataset['train']
-        ds['valid'] = split_dataset['test']
+        if validate_on_test:
+            ds['valid'] = ds['test'].select(range(n_valid))
+        else:
+            split_dataset = ds['train'].train_test_split(test_size=n_valid, seed=seed)
+            ds['train'] = split_dataset['train']
+            ds['valid'] = split_dataset['test']
 
     if n_train:
         ds['train'] = ds['train'].select(range(n_train))

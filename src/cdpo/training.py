@@ -13,6 +13,8 @@ from transformers import (
     TrainerCallback
 )
 
+from cdpo.data_utils import get_response_start_idx
+
 BASE_DIR = r"D:\training\cdpo"
 
 
@@ -96,7 +98,9 @@ def tokenize_and_label_chosen_response(tokenizer, split_str: str, device: str,
     """
 
     # Split the context and response
-    context, response = example['chosen'].rsplit(split_str, 1)
+    # context, response = example['chosen'].rsplit(split_str, 1)
+    start_idx = get_response_start_idx(example, split_str)
+    response = example['chosen'][start_idx:]
 
     # Tokenize everything and move to device
     inputs = tokenizer(
