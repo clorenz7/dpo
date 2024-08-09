@@ -47,6 +47,7 @@ def plot_validation_curves(metrics, step_size=100, show_plot=False, save_plot=''
 
     if save_plot:
         plt.savefig(save_plot, pad_inches=0.02)
+        plt.close()
 
     if show_plot:
         plt.show()

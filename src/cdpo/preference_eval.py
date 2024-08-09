@@ -136,6 +136,7 @@ def generate_responses(model, tokenizer, dataset: Dataset, device,
         remove_columns=['chosen', 'rejected']
     )
 
+
 def evaluate_win_rate(dataset: Dataset, key_1: str = 'new_response',
                       key_2: str = 'chosen_response'):
     """
@@ -174,6 +175,6 @@ def evaluate_win_rate(dataset: Dataset, key_1: str = 'new_response',
             fail_idxs.append(len(new_idx) + len(fail_idxs))
 
     winners = torch.tensor(judgements) == torch.tensor(new_idx)
-    win_rate = (winners).to(float).mean()
+    win_rate = (winners).to(torch.float32).mean()
 
     return win_rate.item(), fail_idxs, winners.tolist()

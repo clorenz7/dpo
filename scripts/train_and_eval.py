@@ -1,23 +1,29 @@
 import argparse
+import os
 import yaml
 
-from datasets import (
-    load_dataset,
-    Dataset
-)
 import torch
-from transformers import (
-    AutoTokenizer,
-    AutoModelForCausalLM
-)
 
 from cdpo import pipelines
+from cdpo.data_utils import get_default_dir
 
 
 def main(args):
+
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    # elif torch.backends.mps.is_available():
+    #     device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+
     # Prepare the base dataset
     with open(args.params, 'r') as fp:
         train_params = yaml.safe_load(fp)
+
+    exp_name = os.path.splitext(os.path.basename(args.params))[0]
+    output_dir = os.path.join(args.output_dir, exp_name)
+    os.makedirs(output_dir, exist_ok=True)
 
     # ----- Finetune basemodel (if necessary)
     ft_params = train_params.get('fine_tuning')
@@ -26,17 +32,18 @@ def main(args):
 
         # Do the finetuning with evaluation
         # TODO: Implement early stopping?
-        # TODO: store plots in the output folder
-        result, model, tokenizer = pipelines.fine_tuning(ft_params)
+        result, model, tokenizer = pipelines.fine_tuning(
+            ft_params, output_dir, device=device
+        )
     else:
         model = tokenizer = None
 
     # ----- Do DPO
     dpo_result = pipelines.dpo_training_pipeline(
-        train_params['dpo'], model, tokenizer
+        train_params['dpo'], output_dir,
+        model=model, tokenizer=tokenizer,
+        device=device
     )
-
-
 
 
 if __name__ == "__main__":
@@ -47,17 +54,11 @@ if __name__ == "__main__":
         '-p', '--params', type=str, required=True,
         help='YAML file of training parameters'
     )
-    # parser.add_argument(
-    #     '-o', '--output_dir', type=str,
-    #     help='Path to the output directory to save outputs'
-    # )
-    # parser.add_argument(
-    #     '-g', '--gen_dir', type=str,
-    #     help='Path to the generated dataset directory'
-    # )
+    parser.add_argument(
+        '-o', '--output_dir', type=str, default=get_default_dir(),
+        help='Directory where experiment outputs are saved. '
+             'Defaults to ~/cdpo_results/{base_file_name} or CDPO_DEFAULT_DIR env var'
+    )
 
     args = parser.parse_args()
-
-    # Read some JSON Parameters
-
     main(args)

@@ -1,0 +1,41 @@
+
+fine_tuning:
+  model:
+    loc: "openai-community/gpt2"
+    n_layers_freeze: 11
+    dropout: 0.1
+    tokenizer_name: "openai-community/gpt2"
+
+  data:
+    n_train: 32
+    n_valid: 16
+    n_test: 16
+    seed: 101
+    verbose: 1
+    validate_on_test: True
+
+  training_args:
+    overwrite_output_dir: True
+    num_train_epochs: 1
+    eval_steps: 8
+    per_device_train_batch_size: 1
+    per_device_eval_batch_size: 1
+    gradient_accumulation_steps: 2
+    learning_rate: 1.0e-5
+
+dpo:
+  data:
+    n_train: 32
+    n_valid: 16
+    n_test: 16
+    seed: 101
+    verbose: 1
+
+  training_args:
+    overwrite_output_dir: True
+    max_steps: 16
+    eval_steps: 16
+    per_device_train_batch_size: 1
+    per_device_eval_batch_size: 1
+    gradient_accumulation_steps: 2
+    learning_rate: 1.0e-6

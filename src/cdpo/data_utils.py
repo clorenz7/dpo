@@ -1,5 +1,15 @@
+import os
 
 from datasets import load_dataset
+
+DEFAULT_DIR = os.path.join(os.path.expanduser('~'), 'cdpo_results')
+
+
+def get_default_dir():
+    default_dir = os.environ.get('CDPO_DEFAULT_DIR', DEFAULT_DIR)
+    os.makedirs(default_dir, exist_ok=True)
+
+    return default_dir
 
 
 def get_response_start_idx(example, split_str):

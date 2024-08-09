@@ -14,8 +14,7 @@ from transformers import (
 )
 
 from cdpo.data_utils import get_response_start_idx
-
-BASE_DIR = r"D:\training\cdpo"
+from cdpo.data_utils import get_default_dir
 
 
 class MetricsCallback(TrainerCallback):
@@ -65,7 +64,7 @@ def get_fine_tuning_args(yaml_file=None, **kwargs):
         eval_do_concat_batches=False,
         lr_scheduler_type="linear",
         warmup_ratio=0.002,
-        logging_dir=os.path.join(BASE_DIR, "logs"),
+        logging_dir=os.path.join(get_default_dir(), "logs"),
     )
 
     if yaml_file:
@@ -240,7 +239,7 @@ class EvalMetricsAggregator:
         log_probs = outputs.predictions[1]
         ref_log_probs = outputs.predictions[2]
         self.win_flags.extend(
-            (log_probs[:, 0] > log_probs[:, 1]).to(float).cpu().tolist()
+            (log_probs[:, 0] > log_probs[:, 1]).to(torch.float32).cpu().tolist()
         )
         self.log_prob_deltas.extend(
             (log_probs[:, 0] - log_probs[:, 1]).cpu().tolist()
@@ -326,7 +325,7 @@ def get_dpo_training_args(yaml_file=None, **kwargs):
         eval_do_concat_batches=False,
         lr_scheduler_type="constant_with_warmup",
         warmup_steps=125,
-        logging_dir=os.path.join(BASE_DIR, "logs"),
+        logging_dir=os.path.join(get_default_dir(), "logs"),
         per_device_train_batch_size=1,
     )
 
