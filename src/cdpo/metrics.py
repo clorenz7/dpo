@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+plt.switch_backend('agg')
 
 
 def plot_validation_curves(metrics, step_size=100, show_plot=False, save_plot=''):

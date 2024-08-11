@@ -365,6 +365,8 @@ def train_with_dpo(model, tokenizer, ds_preproc, training_args):
         compute_metrics=agg.compute_metrics,
         callbacks=[metrics_callback]
     )
-    trainer.train()
+    trainer.train(
+        resume_from_checkpoint=training_args.resume_from_checkpoint
+    )
 
     return metrics_callback.metrics

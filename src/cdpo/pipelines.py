@@ -28,18 +28,22 @@ def dpo_training_pipeline(training_kwargs, save_dir, model=None, tokenizer=None,
 
     # Get the pre-processed training data
     data_args = dict(training_kwargs['data'])
-    load_dir = data_args.pop('load_dir', '')
-    if os.path.exists(load_dir):
-        print(f"Loading preprocessing data from {load_dir}")
-        ds_preproc = DatasetDict.load_from_disk(save_dir)
+
+    pp_data_dir = data_args.pop('loc')
+    if not pp_data_dir:
+        pp_data_dir = os.path.join(save_dir, "dpo_preproc_data")
+
+    if os.path.exists(pp_data_dir):
+        print(f"Loading preprocessing data from {pp_data_dir}")
+        ds_preproc = DatasetDict.load_from_disk(pp_data_dir)
     else:
-        if load_dir:
-            print(f"Preprocessing data at {load_dir} not found!")
+        # if pp_data_dir:
+        #     print(f"Preprocessing data at {pp_data_dir} not found!")
         print("Pre-processing data for DPO...")
         ds = data_utils.get_rlhf_data(**data_args)
         ds_preproc = evaluation.preprocess_dataset_for_dpo(
             ds, model, tokenizer,
-            save_dir=os.path.join(save_dir, "dpo_preproc_data")
+            save_dir=pp_data_dir
         )
 
     # Get the training arguments and train the model
