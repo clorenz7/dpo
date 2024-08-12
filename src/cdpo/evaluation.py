@@ -4,6 +4,8 @@ from datasets import Dataset
 import torch
 import torch.nn.functional as F
 
+from transformers import DataCollatorWithPadding
+
 
 from cdpo.data_utils import get_response_start_idx
 
@@ -155,7 +157,9 @@ def preprocess_example_for_dpo2(example: dict, model, collator,
     end_idxs = []
     all_inputs = []
 
-    for text_key in ('chosen', 'rejected'):
+    text_keys = ('chosen', 'rejected')
+
+    for text_key in text_keys:
         response = example[text_key][response_start_idx:]
 
         inputs = tokenizer(
@@ -213,10 +217,19 @@ def preprocess_dataset_for_dpo(ds: Dataset, model, tokenizer,
 
     model.eval()
 
+    collator = DataCollatorWithPadding(
+        tokenizer=tokenizer, return_tensors='pt'
+    )
+
     def preproc_example(example):
-        return preprocess_example_for_dpo(
-            example, model, tokenizer, split_str
+        return preprocess_example_for_dpo2(
+            example, model, collator, split_str
         )
+
+    # def preproc_example(example):
+    #     return preprocess_example_for_dpo(
+    #         example, model, tokenizer, split_str
+    #     )
 
     ds_new = ds.map(
         preproc_example,

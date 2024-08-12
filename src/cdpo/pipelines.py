@@ -29,7 +29,7 @@ def dpo_training_pipeline(training_kwargs, save_dir, model=None, tokenizer=None,
     # Get the pre-processed training data
     data_args = dict(training_kwargs['data'])
 
-    pp_data_dir = data_args.pop('loc')
+    pp_data_dir = data_args.pop('loc', '')
     if not pp_data_dir:
         pp_data_dir = os.path.join(save_dir, "dpo_preproc_data")
 
