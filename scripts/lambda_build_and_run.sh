@@ -10,6 +10,7 @@ if [ ! -d "venv_dpo" ]; then
     pip install -e . -U
 else
     source venv_dpo/bin/activate
+    cd ~/dpo
 fi
 
 export CDPO_DEFAULT_DIR="/home/ubuntu/cdpo-fs"
