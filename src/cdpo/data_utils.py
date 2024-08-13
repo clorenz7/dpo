@@ -1,8 +1,20 @@
 import os
 
 from datasets import load_dataset
+import torch
 
 DEFAULT_DIR = os.path.join(os.path.expanduser('~'), 'cdpo_results')
+
+
+def get_default_device():
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+
+    return device
 
 
 def get_default_dir():

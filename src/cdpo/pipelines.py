@@ -1,5 +1,6 @@
 
 import os
+import yaml
 
 from datasets import (
     DatasetDict,
@@ -109,3 +110,37 @@ def fine_tuning(training_kwargs, save_dir, device="cuda:0"):
     print(f"Validation curve saved to {plot_path}")
 
     return results, model, tokenizer
+
+
+def sft_and_dpo(params_file, results_dir, device=None):
+
+    # Get parameters, device, and setup output directory
+    if not device:
+        device = data_utils.get_default_device()
+
+    with open(params_file, 'r') as fp:
+        train_params = yaml.safe_load(fp)
+
+    exp_name = os.path.splitext(os.path.basename(params_file))[0]
+    output_dir = os.path.join(results_dir, exp_name)
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Finetune basemodel (if necessary)
+    ft_params = train_params.get('fine_tuning')
+    if ft_params:
+        # TODO: Evaluate the basemodel chosen vs reject before and after
+        # TODO: Implement early stopping?
+        sft_result, model, tokenizer = fine_tuning(
+            ft_params, output_dir, device=device
+        )
+    else:
+        sft_result = model = tokenizer = None
+
+    # Do DPO
+    dpo_result = dpo_training_pipeline(
+        train_params['dpo'], output_dir,
+        model=model, tokenizer=tokenizer,
+        device=device
+    )
+
+    return sft_result, dpo_result
