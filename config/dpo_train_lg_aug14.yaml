@@ -32,7 +32,7 @@ dpo:
     n_valid: 1000
     verbose: 1
     seed: 8888
-    max_tokens: 350
+    max_tokens: 350  # Next time use 352 = 256 + 64 + 32, or 384
 
   training_args:
     max_steps: 2400
