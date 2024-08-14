@@ -71,3 +71,23 @@ class TestEval(TestModelBase):
         # -21.820114135742188
         # ipdb> example['rejected_log_prob']
         # -14.548070907592773
+
+    def test_batch_preproc_dpo(self):
+        self.model.eval()
+        n_pts = 16 * 4
+        # Check that it works to run on an entire dataset
+        ds_train_b = cdpo.evaluation.preprocess_dataset_for_dpo(
+            self.ds['train'].select(range(n_pts)), self.model, self.tokenizer,
+            batch_size=8
+        )
+        assert len(ds_train_b) == n_pts
+
+        ds_train = cdpo.evaluation.preprocess_dataset_for_dpo(
+            self.ds['train'].select(range(n_pts)), self.model, self.tokenizer,
+        )
+        assert len(ds_train) == n_pts
+
+        assert ds_train_b[5]['response_start_idx'] == ds_train[5]['response_start_idx']
+        assert abs(ds_train_b[3]['chosen_log_prob'] - ds_train[3]['chosen_log_prob']) < 1e-4
+
+        import ipdb; ipdb.set_trace()

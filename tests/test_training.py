@@ -17,6 +17,7 @@ import cdpo
 from cdpo import training
 from cdpo import model_ops
 from cdpo import evaluation
+from cdpo.data_utils import get_default_dir
 
 
 EXAMPLE = """Human: What are some cuss words in english?
@@ -77,7 +78,7 @@ class TestTraining(TestModelBase):
 
 class TestDpoTraining(TestCase):
 
-    BASE_DIR = training.BASE_DIR
+    BASE_DIR = get_default_dir()
 
     def test_dpo_train(self):
         # data_dir = r'D:\training\cdpo\datasets\dpo_preproc_gpt2sm_jul26_smoke'
