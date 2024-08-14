@@ -58,9 +58,10 @@ def get_rlhf_data(max_chars=1280,  n_train=None, n_valid=None, n_test=None,
                 len(x['chosen']) <= max_chars and
                 len(x['rejected']) <= max_chars
             )
-
-        ds['train'] = ds['train'].filter(filter_func)
-        ds['test'] = ds['test'].filter(filter_func)
+        ds = ds.filter(
+            filter_func,
+            desc=f"Discarding examples over {max_chars} chars"
+        )
 
     if n_valid:
         if validate_on_test:
@@ -104,5 +105,7 @@ def limit_num_tokens(ds, max_tokens):
             (len(ex['rejected']) <= max_tokens)
         )
 
-    return ds.filter(filter_func)
-
+    return ds.filter(
+        filter_func,
+        desc=f"Discarding examples over {max_tokens} tokens"
+    )
