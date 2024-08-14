@@ -94,3 +94,15 @@ def get_rlhf_data(max_chars=1280,  n_train=None, n_valid=None, n_test=None,
         print(f"Test data has {len(ds['test'])} points")
 
     return ds
+
+
+def limit_num_tokens(ds, max_tokens):
+
+    def filter_func(ex):
+        return (
+            (len(ex['chosen']) <= max_tokens) and
+            (len(ex['rejected']) <= max_tokens)
+        )
+
+    return ds.filter(filter_func)
+

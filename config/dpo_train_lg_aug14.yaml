@@ -28,14 +28,14 @@ dpo:
     tokenizer_name: "openai-community/gpt2-large"
 
   data:
-    # loc: '/home/ubuntu/cdpo-fs/full_train_lg_aug13/dpo_preproc_data'
+    loc: '/home/ubuntu/cdpo-fs/full_train_lg_aug13/dpo_preproc_data'
     n_valid: 1000
     verbose: 1
     seed: 8888
-    max_chars: 1024
+    max_tokens: 350
 
   training_args:
-    max_steps: 1200
+    max_steps: 2400
     save_total_limit: 3
     per_device_train_batch_size: 1
     gradient_accumulation_steps: 64
