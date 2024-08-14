@@ -1,0 +1,43 @@
+
+# fine_tuning:
+#   model:
+#     loc: "openai-community/gpt2-large"
+#     n_layers_freeze: 0
+#     dropout: 0.1
+#   data:
+#     n_valid: 1000
+#     verbose: 1
+#     seed: 8888
+#     validate_on_test: True
+
+#   training_args:
+#     num_train_epochs: 2
+#     save_total_limit: 3
+#     per_device_train_batch_size: 1
+#     gradient_accumulation_steps: 8
+#     per_device_eval_batch_size: 4
+#     learning_rate: 1.0e-5
+#     dataloader_num_workers: 1
+#     load_best_model_at_end: True
+
+dpo:
+  model:
+    loc: '/home/ubuntu/cdpo-fs/full_train_lg_aug13/checkpoint-29000'
+    n_layers_freeze: 0
+    dropout: 0.1
+    tokenizer_name: "openai-community/gpt2-large"
+
+  data:
+    loc: '/home/ubuntu/cdpo-fs/full_train_lg_aug13/dpo_preproc_data'
+    n_valid: 1000
+    verbose: 1
+    seed: 8888
+
+  training_args:
+    max_steps: 1200
+    save_total_limit: 3
+    per_device_train_batch_size: 1
+    gradient_accumulation_steps: 64
+    per_device_eval_batch_size: 8
+    learning_rate: 1.0e-6
+    # dataloader_num_workers: 1
