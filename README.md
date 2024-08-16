@@ -25,7 +25,7 @@ In an effort to be time, GPU memory, and cash efficient, data set and response s
 
 ### GPT2-small
 
-### Methods
+#### Methods
 
 - Responses longer than 1280 characters were discarded.
 - A validation set of 1000 examples was used to prevent overfitting.
@@ -38,7 +38,7 @@ In an effort to be time, GPU memory, and cash efficient, data set and response s
 | SFT   | AdamW     | 5e-5 | 43K   | 8       | 116K           |
 | DPO   | RMSProp   | 1e-5 | 2400  | 64      | 115K           |
 
-### Results
+#### Results
 
 | Model                | Win Rate   |
 |----------------------|----------- |
@@ -56,7 +56,7 @@ Here are the loss, chosen vs reject win rate and avg log probability improvement
 
 ### GPT2-medium
 
-### Methods
+#### Methods
 
 - Same as above, with a slightly lower learning rate since model is bigger
 
@@ -65,7 +65,7 @@ Here are the loss, chosen vs reject win rate and avg log probability improvement
 | SFT   | AdamW     | 3e-5 | 43K   | 8       | 116K           |
 | DPO   | RMSProp   | 3e-6 | 2400  | 64      | 115K           |
 
-### Results
+#### Results
 
 | Model                | Win Rate |
 |----------------------|--------- |
@@ -82,4 +82,43 @@ Here are the loss, chosen vs reject win rate and avg log probability improvement
 ![dpo_med](./assets/gpt2med_dpo_validation_curves_aug11.png)
 
 ### GPT2-large
+
+#### Methods
+
+- Due to GPU memory issues with this size of model, training examples over 384 tokens were rejected. This seems to have caused a shift in the log probabilities.
+- The batch size and learning rate for pretraining were also increased to more closely match the GPT2 paper.
+
+| Stage | Optimizer |  LR  | Steps | n_batch | Train Set Size |
+|-------|-----------|------|-------|---------|----------------|
+| SFT   | AdamW     | 5e-5 | 11K   | 32      | 116K           |
+| DPO   | RMSProp   | 1e-6 | 2400  | 64      | 114K           |
+
+#### Prior Results
+
+- The paper's methods were more thorough:
+    - There was no mention of limiting the length of the data
+    - They evaluated the models on the entire test set with the larger GPT-4 model
+    - The calculated error bars on their metrics of $\pm 2\%$
+- Thus, it is likely that this task is both more difficult and there is less variance on the performance estimate
+
+
+| Model                | Win Rate |
+|----------------------|--------- |
+| Pythia 2.8B 2-shot   |  23%     |
+| GPT2-lg fine tuned   |  41%     |
+| GPT2-lg DPO          |  64%     |
+
+#### Results
+
+| Model                | Win Rate |
+|----------------------|--------- |
+| GPT2-lg 0.7B 0-shot  |  17.7%   |
+| GPT2-lg fine tuned   |   %   |
+| GPT2-lg DPO          |   %   |
+
+
+### Summary
+
+- Given these results, we can plot model size versus performace
+
 
