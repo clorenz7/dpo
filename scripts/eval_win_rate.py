@@ -4,6 +4,7 @@ from datasets import (
     load_dataset,
     Dataset
 )
+import numpy as np
 from transformers import (
     AutoModelForCausalLM
 )
@@ -17,13 +18,12 @@ def main(args):
         ds2 = Dataset.load_from_disk(args.gen_dir)
     else:
         # Get the model
-        device = "cuda:0"
         print("Loading the model...")
         tokenizer = model_ops.get_tokenizer("openai-community/gpt2")
         model = AutoModelForCausalLM.from_pretrained(args.model)
         tokenizer.pad_token = tokenizer.eos_token
         model.eval()
-        model.to(device)
+        model.to(args.device)
 
         # Load the dataset
         print("Loading the dataset...")
@@ -46,18 +46,29 @@ def main(args):
         print("Generating responses...")
         ds2 = preference_eval.generate_responses(
             model, tokenizer,
-            ds['test'], device=device
+            ds['test'], device=args.device,
+            n_responses=args.n_trials,
         )
 
         if args.output_dir:
             ds2.save_to_disk(args.output_dir)
 
     print("Evaluating responses...")
-    win_rate, fail_idxs, win_flags = preference_eval.evaluate_win_rate(ds2)
-    print(f"Win Rate: {win_rate*100:0.1f}%")
-    print(f"Fail indexes: {fail_idxs}")
+    win_rates = []
+    for trial_idx in range(args.n_trials):
+        win_rate, fail_idxs, win_flags = preference_eval.evaluate_win_rate(
+            ds2, key_1='new_responses', trial_idx=trial_idx
+        )
+        print(f"---- Trial #{trial_idx+1} ----")
+        print(f"Win Rate: {win_rate*100:0.1f}%")
+        if fail_idxs:
+            print(f"Fail indexes: {fail_idxs}")
+        win_rates.append(win_rate)
 
-    import ipdb; ipdb.set_trace()
+    if args.n_trials > 0:
+        avg_win_rate = np.mean(win_rates)
+        std_win_rate = np.std(win_rates)
+        print(f"Avg Win Rate: {avg_win_rate*100:0.1f}% STD: {std_win_rate*100:0.1f}%")
 
 
 if __name__ == "__main__":
@@ -84,6 +95,15 @@ if __name__ == "__main__":
         '-x', '--exclude', type=str, default='',
         help='comma separated list of test indexes to exclude e.g. 54,88888'
     )
+    parser.add_argument(
+        '-t', '--n_trials', type=int, default=1,
+        help='Number of times to generate and evaluate'
+    )
+    parser.add_argument(
+        '-d', '--device', type=str, default="cuda:0",
+        help='Device to use for evaluation'
+    )
+
 
     args = parser.parse_args()
     main(args)

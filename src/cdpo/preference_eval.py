@@ -86,7 +86,8 @@ def evaluate_completion(query, response_a, response_b, model="gpt-4o-mini"):
 
 @torch.no_grad()
 def generate_responses(model, tokenizer, dataset: Dataset, device,
-                       split_str="Assistant:", max_new_tokens=128) -> Dataset:
+                       split_str="Assistant:", max_new_tokens=128,
+                       n_responses=1) -> Dataset:
     """
     Generates responses for chat histories
     Inputs:
@@ -119,12 +120,14 @@ def generate_responses(model, tokenizer, dataset: Dataset, device,
 
         generated_text = text_generator(
             prompt, max_new_tokens=max_new_tokens,
-            num_return_sequences=1,
+            num_return_sequences=n_responses,
             return_full_text=False,
             temperature=0.7
         )
 
-        example['new_response'] = generated_text[0]['generated_text'][1:]
+        new_responses = [g['generated_text'][1:] for g in generated_text]
+
+        example['new_responses'] = new_responses
         example['chosen_response'] = chosen[1:]
         example['context'] = context
         example['rejected_response'] = rejected[1:]
@@ -138,13 +141,14 @@ def generate_responses(model, tokenizer, dataset: Dataset, device,
 
 
 def evaluate_win_rate(dataset: Dataset, key_1: str = 'new_response',
-                      key_2: str = 'chosen_response'):
+                      key_2: str = 'chosen_response', trial_idx=None):
     """
     Use the OpenAI API to judge responses to a chat history
     Inputs:
         dataset
         key_1: field in dataset to use in comparison
         key_2: field in dataset to compare against
+        trial_idx: if key_1 is a list of responses, which index to choose each time
     Returns:
         win_rate: float
     """
@@ -155,13 +159,18 @@ def evaluate_win_rate(dataset: Dataset, key_1: str = 'new_response',
     fail_idxs = []
 
     for example in tqdm(dataset):
-        if random.random() <= 0.5:
+
+        if trial_idx is None:
             response_a = example[key_1]
+        else:
+            response_a = example[key_1][trial_idx]
+
+        if random.random() <= 0.5:
             response_b = example[key_2]
             new_idx.append(0)
         else:
+            response_b = response_a
             response_a = example[key_2]
-            response_b = example[key_1]
             new_idx.append(1)
 
         try:
