@@ -1,6 +1,6 @@
 
 
-#git clone https://${GH_PAT}@github.com/clorenz7/dpo.git dpo
+#git clone --depth 1 --branch main https://${GH_PAT}@github.com/clorenz7/dpo.git dpo
 
 if [ ! -d "venv_dpo" ]; then
     python3 -m venv --system-site-packages venv_dpo
