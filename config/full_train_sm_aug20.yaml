@@ -1,0 +1,43 @@
+
+fine_tuning:
+  model:
+    loc: "openai-community/gpt2"
+    n_layers_freeze: 0
+    dropout: 0.1
+  data:
+    n_valid: 1000
+    verbose: 1
+    seed: 8888
+    validate_on_test: True
+
+  # Trying to match training_play.ipynb which made results_jul20
+  training_args:
+    num_train_epochs: 3
+    per_device_train_batch_size: 4
+    gradient_accumulation_steps: 2
+    learning_rate: 6.25e-5
+    weight_decay: 1.0e-3
+    load_best_model_at_end: True
+    metric_for_best_model: "eval_loss"
+    greater_is_better: False
+    save_safetensors: False
+
+dpo:
+  # model:
+  #   loc: 'D:\training\cdpo\results_sft_valtest_aug09\checkpoint-14501'
+  #   n_layers_freeze: 0
+  #   dropout: 0.1
+  #   tokenizer_name: "openai-community/gpt2"
+
+  data:
+    n_valid: 1000
+    verbose: 1
+    seed: 8888
+    max_tokens: 384
+
+  training_args:
+    max_steps: 2400
+    per_device_train_batch_size: 2
+    per_device_eval_batch_size: 8
+    gradient_accumulation_steps: 32
+    learning_rate: 2.5e-5  # 1e-6 did not have an increase in loss

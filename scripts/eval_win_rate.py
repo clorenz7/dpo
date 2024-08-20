@@ -68,8 +68,21 @@ def main(args):
     if args.n_trials > 0:
         avg_win_rate = np.mean(win_rates)
         std_win_rate = np.std(win_rates)
-        print(f"Avg Win Rate: {avg_win_rate*100:0.1f}% STD: {std_win_rate*100:0.1f}%")
+        print(
+            f"Avg Win Rate: {avg_win_rate*100:0.1f}% "
+            f"STD: {std_win_rate*100:0.1f}% "
+            f"Min: {min(win_rates)*100:0.1f}% "
+            f"Max: {max(win_rates)*100:0.1f}% "
+        )
 
+        print(f"|{'Win Rate':^10}|{'STD':^10}|{'Min':^10}|{'Max':^10}|")
+        print(f"|{'':-^10}|{'':-^10}|{'':-^10}|{'':-^10}|")
+        print(
+            f"|{str(round(avg_win_rate*100, 1))+'%':^10}"
+            f"|{str(round(std_win_rate*100, 1))+'%':^10}"
+            f"|{str(round(min(win_rates)*100, 1))+'%':^10}"
+            f"|{str(round(max(win_rates)*100, 1))+'%':^10}|"
+        )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

@@ -1,0 +1,50 @@
+
+fine_tuning:
+  model:
+    loc: "openai-community/gpt2-large"
+    n_layers_freeze: 0
+    dropout: 0.1
+  data:
+    n_valid: 1000
+    verbose: 1
+    seed: 8888
+    validate_on_test: True
+
+  training_args:
+    num_train_epochs: 3
+    save_total_limit: 12
+    per_device_train_batch_size: 1
+    gradient_accumulation_steps: 32
+    learning_rate: 8.0e-6
+    per_device_eval_batch_size: 4
+    # dataloader_num_workers: 1
+    load_best_model_at_end: True
+    metric_for_best_model: "eval_loss"
+    greater_is_better: False
+    save_safetensors: False
+    weight_decay: 1.0e-3
+
+dpo:
+  # model:
+  #   loc: ''
+  #   n_layers_freeze: 0
+  #   dropout: 0.1
+  #   tokenizer_name: "openai-community/gpt2"
+
+  data:
+    n_valid: 1000
+    verbose: 1
+    seed: 8888
+    max_tokens: 384
+
+  training_args:
+    max_steps: 2400
+    save_total_limit: 16
+    per_device_train_batch_size: 1
+    gradient_accumulation_steps: 64
+    learning_rate: 1.5e-6
+    per_device_eval_batch_size: 8
+    # dataloader_num_workers: 1
+    metric_for_best_model: "eval_loss"
+    greater_is_better: False
+    save_safetensors: False
