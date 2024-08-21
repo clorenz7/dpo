@@ -6,9 +6,9 @@ if [ ! -d "venv_dpo" ]; then
     python3 -m venv --system-site-packages venv_dpo
 
     source venv_dpo/bin/activate
+    pip install --upgrade pip
     pip install --upgrade setuptools wheel
-    cd ~/dpo
-    pip install -e . -U
+    cd ~/dpo && pip install -e . -U
 else
     source venv_dpo/bin/activate
     cd ~/dpo
