@@ -1,4 +1,4 @@
-
+#!/bin/bash
 
 #git clone --depth 1 --branch main https://${GH_PAT}@github.com/clorenz7/dpo.git dpo
 
