@@ -18,7 +18,7 @@ export CDPO_DEFAULT_DIR="/home/ubuntu/cdpo-fs"
 
 current_datetime=$(date +"%Y_%b_%d_%H_%M")
 
-python scripts/train_and_eval.py -p $1 -o $CDPO_DEFAULT_DIR | tee $CDPO_DEFAULT_DIR/${current_datetime}.log
+python -u scripts/train_and_eval.py -p $1 -o $CDPO_DEFAULT_DIR | tee $CDPO_DEFAULT_DIR/${current_datetime}.log
 
 # LAMBDA_API_KEY=""
 # INSTANCE_IDS_FILE=
