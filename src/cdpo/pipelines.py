@@ -69,7 +69,8 @@ def dpo_training_pipeline(training_kwargs, save_dir, model=None, tokenizer=None,
 
     plot_path = os.path.join(save_dir, "dpo_validation_curves.png")
     metrics.plot_validation_curves(
-        results, training_args.eval_steps, save_plot=plot_path
+        results, training_args.eval_steps, save_plot=plot_path,
+        title=os.path.basename(save_dir),
     )
     print(f"Validation curve saved to {plot_path}")
 
@@ -111,7 +112,8 @@ def fine_tuning(training_kwargs, save_dir, device="cuda:0"):
 
     plot_path = os.path.join(save_dir, "sft_validation_curves.png")
     metrics.plot_validation_curves(
-        results, training_args.eval_steps, save_plot=plot_path
+        results, training_args.eval_steps, save_plot=plot_path,
+        title=os.path.basename(save_dir),
     )
     print(f"Validation curve saved to {plot_path}")
 

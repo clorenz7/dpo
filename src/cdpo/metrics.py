@@ -4,7 +4,7 @@ plt.switch_backend('agg')
 
 
 def plot_validation_curves(metrics, step_size=100, show_plot=False, save_plot='',
-                           log_loss=False):
+                           log_loss=False, title=''):
 
     losses, win_rates, prob_deltas = [], [], []
     tr_losses = []
@@ -44,6 +44,8 @@ def plot_validation_curves(metrics, step_size=100, show_plot=False, save_plot=''
     plt.minorticks_on()
     plt.grid(True, which='minor', axis='y', linestyle=':', linewidth=0.5)
     plt.legend(['Val Set', 'Train'])
+    if title:
+        plt.title(title)
 
     if len(win_rates) > 0:
         p_idx += 1
