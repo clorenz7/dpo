@@ -54,7 +54,7 @@ Here are the loss, chosen vs reject win rate and avg log probability improvement
 |----------------------|--------- |
 | GPT2-med             |  15.6%   |
 | GPT2-med fine tuned  |  36.4%   |
-| GPT2-med DPO         |  62.0%   |
+| GPT2-med DPO         |  58.0%   |
 
 Here is the loss on the validation set for fine tuning:
 
@@ -71,10 +71,10 @@ Here are the loss, chosen vs reject win rate and avg log probability improvement
 - Due to GPU memory issues with this size of model, training examples over 384 tokens were rejected. This seems to have caused a shift in the log probabilities.
 - The batch size and learning rate for pretraining were also increased to more closely match the GPT2 paper.
 
-| Stage | Optimizer |  LR  | Steps | n_batch | Train Set Size |
-|-------|-----------|------|-------|---------|----------------|
-| SFT   | AdamW     | 5e-5 | 11K   | 32      | 116K           |
-| DPO   | RMSProp   | 1e-6 | 2400  | 64      | 114K           |
+| Stage | Optimizer |  LR    | Steps | n_batch | Train Set Size |
+|-------|-----------|--------|-------|---------|----------------|
+| SFT   | AdamW     | 2e-5   | 5.4K  | 64      | 115K           |
+| DPO   | RMSProp   | 1.5e-6 | 2400  | 64      | 114K           |
 
 
 #### Results
@@ -82,8 +82,8 @@ Here are the loss, chosen vs reject win rate and avg log probability improvement
 | Model                | Win Rate |
 |----------------------|--------- |
 | GPT2-lg 0.7B 0-shot  |  17.7%   |
-| GPT2-lg fine tuned   |   %   |
-| GPT2-lg DPO          |   %   |
+| GPT2-lg fine tuned   |  36.0%   |
+| GPT2-lg DPO          |  63.2%   |
 
 
 The supervised fine tuning results are not following the trend of the prior models.  OpenAI work suggests cross entropy loss falls as a function of model parameters N via $kN^{-0.076}$. The medium model meets this prediction, but not the large, suggesting hyperparameter tuning is needed.
