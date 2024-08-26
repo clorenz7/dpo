@@ -85,14 +85,24 @@ Here are the loss, chosen vs reject win rate and avg log probability improvement
 | GPT2-lg fine tuned   |  36.0%   |
 | GPT2-lg DPO          |  63.2%   |
 
+Here is the loss for the fine tuning:
 
-The supervised fine tuning results are not following the trend of the prior models.  OpenAI work suggests cross entropy loss falls as a function of model parameters N via $kN^{-0.076}$. The medium model meets this prediction, but not the large, suggesting hyperparameter tuning is needed.
+![lg_sft](../assets/gpt2lg_sft_validation_curves_aug13.png)
+
+Here are the loss, chosen vs reject win rate (i.e. $\pi_W > \pi_L$) and avg log probability improvement for DPO:
+
+![lg_dpo](../assets/gpt2lg_dpo_validation_curves_aug21.png)
+
+
+The supervised fine tuning results are not following the trend of the prior models.  [Work by OpenAI on scaling laws](https://arxiv.org/pdf/2001.08361) suggests cross entropy loss falls as a function of model parameters N via $kN^{-0.076}$. The medium model meets this prediction, but not the large.
 
 | Model | Relative size | Observed | Predicted |
 |-------|---------------|----------|-----------|
 | Small | 117/117 = 1.0 |    2.16  |     n/a   |
-| Med   | 345/117       |    1.99  |     1.99  |
-| Large | 762/117       |    1.95  |     1.873 |
+| Med   | 345/117 = 2.9 |    1.99  |     1.99  |
+| Large | 762/117 = 6.5 |    1.95  |     1.873 |
+
+Hyperparameter tuning was attempted, including adding weight decay. None of this made any difference. Taking a look at [Figure 4 of the scaling laws paper](https://arxiv.org/pdf/2001.08361), it can be seen that for data sets of less than $10^9$ tokens, there is practically no cross entropy difference between the medium and large models. This fine tuning dataset is roughly $10^7$ tokens, so it seems possible that additional data would be required to meet the prediction.
 
 
 ### Results Comparison
@@ -114,7 +124,11 @@ The supervised fine tuning results are not following the trend of the prior mode
 
 - Given these results, we can plot model size versus performance:
 
+![perf](../assets/params_vs_perf_250ex.png)
 
+As discussed, it is believed that the DPO performance exceeds the paper because the test set is smaller (higher variance) and easier (shorter examples), while the SFT plateu is caused by the smaller training set and insufficient regularization.
+
+Nevertheless, the efficacy of DPO has been replicated!
 
 ### Analysis of Variance
 
@@ -130,7 +144,7 @@ The supervised fine tuning results are not following the trend of the prior mode
 | gpt2-lg  | DPO   | Aug 21 |  58.4%   |   2.4%   |  55.0%   |  62.0%   |
 
 
-![param_vs_perf](../assets/params_vs_perf_23aug.png)
+![param_vs_perf](../assets/params_vs_perf_23aug_errbars.png)
 
 
 
