@@ -1,0 +1,45 @@
+
+# fine_tuning:
+#   model:
+#     loc: "openai-community/gpt2-medium"
+#     n_layers_freeze: 0
+#     dropout: 0.1
+#   data:
+#     n_valid: 1000
+#     verbose: 1
+#     seed: 8888
+#     validate_on_test: True
+
+#   # Trying to match training_med_jul25.ipynb
+#   training_args:
+#     num_train_epochs: 3
+#     per_device_train_batch_size: 2
+#     gradient_accumulation_steps: 4
+#     per_device_eval_batch_size: 4
+#     learning_rate: 3.0e-5  # originally 5e-5 but seemed too high
+
+dpo:
+  model:
+    # loc: 'D:\training\cdpo\full_train_med_aug09\sft\checkpoint-28000'
+    loc: 'D:\training\cdpo\full_train_med_aug09\dpo\checkpoint-1500'
+    n_layers_freeze: 0
+    dropout: 0.1
+    tokenizer_name: "openai-community/gpt2"
+
+  data:
+    n_valid: 1000
+    verbose: 1
+    seed: 8888
+
+  # Trying to match full_train_sm_aug05.yaml
+  training_args:
+    # overwrite_output_dir: True
+    max_steps: 2400
+    adam_beta1: 0.0  # Make it roughly RMSProp
+    adam_beta2: 0.9
+    per_device_train_batch_size: 1
+    gradient_accumulation_steps: 64
+    per_device_eval_batch_size: 4
+    learning_rate: 3.0e-6  # med_aug04.ipynb had 1e-6 w Adam
+    resume_from_checkpoint: True
+
