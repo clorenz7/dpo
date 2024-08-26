@@ -5,11 +5,11 @@ from datasets import (
 )
 
 from openai import OpenAI
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_random_exponential,
-)  # for exponential backoff
+# from tenacity import (
+#     retry,
+#     stop_after_attempt,
+#     wait_random_exponential,
+# )  # for exponential backoff
 import torch
 from transformers import (
     pipeline,
@@ -155,11 +155,9 @@ def evaluate_win_rate(dataset: Dataset, key_1: str = 'new_response',
 
     new_idx = []
     judgements = []
-
     fail_idxs = []
 
     for example in tqdm(dataset):
-
         if trial_idx is None:
             response_a = example[key_1]
         else:

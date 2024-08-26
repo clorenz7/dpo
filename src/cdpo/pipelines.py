@@ -39,8 +39,6 @@ def dpo_training_pipeline(training_kwargs, save_dir, model=None, tokenizer=None,
         print(f"Loading preprocessing data from {pp_data_dir}")
         ds_preproc = DatasetDict.load_from_disk(pp_data_dir)
     else:
-        # if pp_data_dir:
-        #     print(f"Preprocessing data at {pp_data_dir} not found!")
         print("Pre-processing data for DPO...")
         ds = data_utils.get_rlhf_data(**data_args)
         ds_preproc = evaluation.preprocess_dataset_for_dpo(

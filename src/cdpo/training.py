@@ -98,7 +98,6 @@ def tokenize_and_label_chosen_response(tokenizer, split_str: str, device: str,
     """
 
     # Split the context and response
-    # context, response = example['chosen'].rsplit(split_str, 1)
     start_idx = get_response_start_idx(example, split_str)
     response = example['chosen'][start_idx:]
 
@@ -106,7 +105,6 @@ def tokenize_and_label_chosen_response(tokenizer, split_str: str, device: str,
     inputs = tokenizer(
         example['chosen'] + tokenizer.eos_token,
         truncation=True,
-        # max_length=tokenizer.model_max_length, padding="max_length"
     )
 
     # Determine the # of tokens in the response to be trained on
@@ -344,7 +342,6 @@ def get_dpo_training_args(yaml_file=None, **kwargs):
     training_args = TrainingArguments(**train_kwargs)
 
     return training_args
-
 
 
 def train_with_dpo(model, tokenizer, ds_preproc, training_args):

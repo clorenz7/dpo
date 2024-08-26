@@ -39,7 +39,6 @@ def main(args):
 
         max_chars = 1280
         ds = load_dataset("Anthropic/hh-rlhf")
-        # ds['train'] = ds['train'].filter(lambda x: len(x['chosen']) <= max_chars)
         ds['test'] = ds['test'].filter(lambda x: len(x['chosen']) <= max_chars)
         ds['test'] = ds['test'].select(keep_idxs)
 
@@ -116,7 +115,6 @@ if __name__ == "__main__":
         '-d', '--device', type=str, default="cuda:0",
         help='Device to use for evaluation'
     )
-
 
     args = parser.parse_args()
     main(args)

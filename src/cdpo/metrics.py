@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 plt.switch_backend('agg')
 
 
-def plot_validation_curves(metrics, step_size=100, show_plot=False, save_plot='',
-                           log_loss=False, title=''):
+def plot_validation_curves(metrics, step_size=100, show_plot=False,
+                           save_plot='', log_loss=False, title=''):
 
     losses, win_rates, prob_deltas = [], [], []
     tr_losses = []

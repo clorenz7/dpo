@@ -27,4 +27,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     pipelines.sft_and_dpo(args.params, args.output_dir, args.device)
-
